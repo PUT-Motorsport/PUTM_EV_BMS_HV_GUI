@@ -1,7 +1,6 @@
 import PySimpleGUI as sg
 
-# Create a layout for the GUI
-
+sg.theme('Dark2')
 
 basic_info = [
     sg.Text("MAX VOLTAGE:"), sg.Text("", size=(10, 1), key="-VALUE1-"),
