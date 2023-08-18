@@ -1,2 +1,6 @@
+future==0.18.3
+iso8601==2.0.0
 PySimpleGUI==4.60.5
+PyYAML==6.0.1
+serial==0.0.97
 tk==0.1.0
