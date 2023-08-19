@@ -1,7 +1,16 @@
 import serial
+import sys
 
-with serial.Serial() as ser:
-    ser.baudrate = 19200
-    ser.port = '/dev/ttyUSB0
-    ser.open()
-    ser.write(b'hello')
+
+
+if(len(sys.argv) != 2):
+    print("Usage: python3 pyserial_tests.py <serial_port>")
+    sys.exit(1)
+
+
+ser =  serial.Serial()
+ser.port = sys.argv[1]
+ser.open()
+ser.readline()
+line = ser.readline().decode('ascii')
+print(line)
