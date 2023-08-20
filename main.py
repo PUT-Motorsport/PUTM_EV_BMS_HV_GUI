@@ -109,24 +109,19 @@ temperature = [
     ]
 ]
 
+charge_control = [[sg.Button("Start Charging")], [sg.Button("Stop Charging")]]
+
 frame_basic_info = [sg.Frame("Basic Info", basic_info)]
-column_basic_info = sg.Column([frame_basic_info])
+frame_charge_control = [sg.Frame("Charge control", charge_control)]
 
 frame_cell_voltage = [sg.Frame("Cell Voltages", cell_voltage)]
 frame_temperature = [sg.Frame("Temperatures", temperature)]
-column_tables = sg.Column([frame_cell_voltage, frame_temperature])
 
-charge_control = [[sg.Button("Start Charging"), sg.Button("Stop Charging")]]
-frame_charge_control = [sg.Frame("Charge control", charge_control)]
-column_charge_control = sg.Column([frame_charge_control])
-
-buttons = [[sg.Button("Update Values"), sg.Button("Exit")]]
-frame_buttons = [sg.Frame("Buttons", buttons)]
-column_buttons = sg.Column([frame_buttons])
+column_basic_info_charge_control = sg.Column([frame_basic_info, frame_charge_control], element_justification="c")
+column_tables = sg.Column([frame_cell_voltage, frame_temperature], element_justification="c")
 
 layout = [
-    [column_basic_info, column_tables],
-    [column_charge_control, column_buttons],
+    [column_basic_info_charge_control, column_tables],
 ]
 window = sg.Window("BMS HV Utility", layout, element_justification="c")
 
