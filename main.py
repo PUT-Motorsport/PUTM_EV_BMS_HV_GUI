@@ -81,7 +81,7 @@ cell_voltage = [
             display_row_numbers=True,
             auto_size_columns=False,
             justification="center",
-            num_rows=10,
+            num_rows=CELL_VOLTAGE_TABLE_ROWS,
             enable_events=True,
             hide_vertical_scroll=True,
             key=KEY_CELL_VOLTAGE,
@@ -101,7 +101,7 @@ temperature = [
             display_row_numbers=True,
             auto_size_columns=False,
             justification="center",
-            num_rows=3,
+            num_rows=TEMPERATURE_TABLE_ROWS,
             enable_events=True,
             hide_vertical_scroll=True,
             key=KEY_TEMPERATURE,
@@ -156,8 +156,10 @@ if __name__ == "__main__":
     while True:
         event, values = window.read(timeout=300)
 
-        if event == sg.WINDOW_CLOSED or event == "Exit":
-            break
+        if event == sg.WINDOW_CLOSED:
+            ser.close()
+            break;
+
         elif not bms_hv_data_queue.empty():
             bms_hv_data_json = bms_hv_data_queue.get()
             try:
