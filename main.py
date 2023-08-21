@@ -131,6 +131,10 @@ layout = [ image,
 ]
 window = sg.Window("BMS HV Utility", layout, element_justification="c")
 
+def float_to_string_with_precision(value, precision):
+    """Converts a float to a string with the specified precision"""
+    return f"{value:.{precision}f}"
+
 def print_ok(msg):
     """Prints an ok message"""
     print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
@@ -216,25 +220,32 @@ def main():
                 )
                 bms_hv_data = BmsHvData(**bms_hv_data.__dict__)
 
-                window[KEY_MAX_VOLTAGE].update(max(bms_hv_data.cell_voltage))
-                window[KEY_MIN_VOLTAGE].update(min(bms_hv_data.cell_voltage))
-                window[KEY_CURRENT].update(bms_hv_data.current)
-                window[KEY_ACC_VOLTAGE].update(bms_hv_data.acc_voltage)
-                window[KEY_CAR_VOLTAGE].update(bms_hv_data.car_voltage)
-                window[KEY_SOC].update(sum(bms_hv_data.soc) / len(bms_hv_data.soc))
-                window[KEY_CELL_VOLTAGE].update(
-                    values=to_matrix(bms_hv_data.cell_voltage, TABLE_COLUMNS)
-                )
-                window[KEY_TEMPERATURE].update(
-                    values=to_matrix(bms_hv_data.temperature, TABLE_COLUMNS)
-                )
-
-
             except json.decoder.JSONDecodeError:
                 print_error("Invalid JSON: " + bms_hv_data_json)
+                continue
 
             except TypeError:
                 print_error("Received JSON is not of type BmsHvData: " + bms_hv_data_json)
+                continue
+
+            window[KEY_MAX_VOLTAGE].update(float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3))
+            window[KEY_MIN_VOLTAGE].update(float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3))
+            window[KEY_CURRENT].update(float_to_string_with_precision(bms_hv_data.current, 3))
+            window[KEY_ACC_VOLTAGE].update(float_to_string_with_precision(bms_hv_data.acc_voltage, 3))
+            window[KEY_CAR_VOLTAGE].update(float_to_string_with_precision(bms_hv_data.car_voltage, 3))
+            window[KEY_SOC].update(float_to_string_with_precision((sum(bms_hv_data.soc) / len(bms_hv_data.soc)), 3))
+            
+            window[KEY_CELL_VOLTAGE].update(
+                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.cell_voltage]
+, TABLE_COLUMNS)
+            )
+
+            temperature_as_string = [float_to_string_with_precision(v, 3) for v in bms_hv_data.temperature]
+            window[KEY_TEMPERATURE].update(
+                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.cell_voltage]
+, TABLE_COLUMNS)
+            )
+
 
     ser.close()
     window.close()
