@@ -10,8 +10,11 @@ import serial
 from colorama import Fore, Style
 
 sg.theme("Material2")
+sg.set_options(font=("Helvetica", 13))
 
 IMAGE_PATH = "putm_logo.png"
+
+STANDARD_TEXT_WIDTH = 7
 
 TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
@@ -42,32 +45,32 @@ class BmsHvData:
 basic_info = [
     [
         sg.Text("Max Voltage:"),
-        sg.Text("-", key=KEY_MAX_VOLTAGE),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_MAX_VOLTAGE, justification="c"),
         sg.Text("V"),
     ],
     [
         sg.Text("Min Voltage:"),
-        sg.Text("-", key=KEY_MIN_VOLTAGE),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_MIN_VOLTAGE, justification="c"),
         sg.Text("V"),
     ],
     [
         sg.Text("Current:"),
-        sg.Text("-", key=KEY_CURRENT),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_CURRENT, justification="c"),
         sg.Text("A"),
     ],
     [
         sg.Text("Acc Voltage:"),
-        sg.Text("-", key=KEY_ACC_VOLTAGE),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_ACC_VOLTAGE, justification="c"),
         sg.Text("V"),
     ],
     [
         sg.Text("Car Voltage:"),
-        sg.Text("-", key=KEY_CAR_VOLTAGE),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_CAR_VOLTAGE, justification="c"),
         sg.Text("V"),
     ],
     [
         sg.Text("Soc:"),
-        sg.Text("-", key=KEY_SOC),
+        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_SOC, justification="c"),
         sg.Text("%"),
     ],
 ]
@@ -88,6 +91,7 @@ cell_voltage = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_CELL_VOLTAGE,
+            def_col_width = STANDARD_TEXT_WIDTH,
         )
     ]
 ]
@@ -108,6 +112,7 @@ temperature = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_TEMPERATURE,
+            def_col_width = STANDARD_TEXT_WIDTH,
         )
     ]
 ]
@@ -202,7 +207,7 @@ def main():
 
         elif event == "Start Charging":
             try:
-                bms_hv_settings_queue.put_nowait("a")
+                bms_hv_settings_queue.put_nowait("@kupa@")
             except queue.Full:
                 print_error("Previous command still in the queue")
         
@@ -240,9 +245,8 @@ def main():
 , TABLE_COLUMNS)
             )
 
-            temperature_as_string = [float_to_string_with_precision(v, 3) for v in bms_hv_data.temperature]
             window[KEY_TEMPERATURE].update(
-                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.cell_voltage]
+                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.temperature]
 , TABLE_COLUMNS)
             )
 
