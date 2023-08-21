@@ -1,4 +1,4 @@
-''' This is the main file for the BMS HV Utility. It is used to display the data from the BMS HV and to change its settings'''
+""" This is the main file for the BMS HV Utility. It is used to display the data from the BMS HV and to change its settings"""
 import json
 from types import SimpleNamespace
 from dataclasses import dataclass
@@ -45,32 +45,40 @@ class BmsHvData:
 basic_info = [
     [
         sg.Text("Max Voltage:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_MAX_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Min Voltage:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_MIN_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Current:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_CURRENT, justification="c"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CURRENT, justification="c"),
         sg.Text("A"),
     ],
     [
         sg.Text("Acc Voltage:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_ACC_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_ACC_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Car Voltage:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_CAR_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CAR_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Soc:"),
-        sg.Text("-", size = (STANDARD_TEXT_WIDTH, 1) ,key=KEY_SOC, justification="c"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC, justification="c"),
         sg.Text("%"),
     ],
 ]
@@ -91,7 +99,7 @@ cell_voltage = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_CELL_VOLTAGE,
-            def_col_width = STANDARD_TEXT_WIDTH,
+            def_col_width=STANDARD_TEXT_WIDTH,
         )
     ]
 ]
@@ -112,7 +120,7 @@ temperature = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_TEMPERATURE,
-            def_col_width = STANDARD_TEXT_WIDTH,
+            def_col_width=STANDARD_TEXT_WIDTH,
         )
     ]
 ]
@@ -128,61 +136,83 @@ frame_cell_voltage = [sg.Frame("Cell Voltages", cell_voltage)]
 frame_temperature = [sg.Frame("Temperatures", temperature)]
 frame_exit_button = [sg.Frame("Exit", exit_button)]
 
-column_left = sg.Column([frame_basic_info, frame_charge_control, frame_exit_button], element_justification="l", vertical_alignment="top")
-column_right = sg.Column([frame_cell_voltage, frame_temperature], element_justification="r", vertical_alignment="top")
+column_left = sg.Column(
+    [frame_basic_info, frame_charge_control, frame_exit_button],
+    element_justification="l",
+    vertical_alignment="top",
+)
+column_right = sg.Column(
+    [frame_cell_voltage, frame_temperature],
+    element_justification="r",
+    vertical_alignment="top",
+)
 
-layout = [ image,
+layout = [
+    image,
     [column_left, sg.VerticalSeparator(pad=None), column_right],
 ]
 window = sg.Window("BMS HV Utility", layout, element_justification="c")
+
 
 def float_to_string_with_precision(value, precision):
     """Converts a float to a string with the specified precision"""
     return f"{value:.{precision}f}"
 
+
 def print_ok(msg):
     """Prints an ok message"""
     print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
+
 
 def print_error(msg):
     """Prints an error message"""
     print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
 
+
 def print_warning(msg):
     """Prints a warning message"""
     print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+
 
 def to_matrix(l, columns):
     """Converts a list to a matrix with the specified number of columns"""
     return [l[i : i + columns] for i in range(0, len(l), columns)]
 
-def serial_task(ser, read_queue, write_queue):
-    ''' This function is used to read data from the serial port and to write data to the serial port '''
-    WRITE_PREFIX = "WRITE: "
-    READ_PREFIX = "READ: "
-    while True:
-        # Write data
-        try:
-            data = write_queue.get_nowait()
-            ser.write(data.encode("utf-8"))
-            print_ok(WRITE_PREFIX + "New data sent to the serial port")
-        except queue.Empty:
-            print_warning(WRITE_PREFIX + "Nothing to send to the serial port")
 
-        # Read data
+def serial_task(ser, read_queue, write_queue):
+    """This function is used to read data from the serial port and to write data to the serial port"""
+    write_prefix = "WRITE: "
+    read_prefix = "READ: "
+    while True:
         try:
-            ser.reset_input_buffer()
-            ser.readline()
-            line = ser.readline().decode("utf-8")
-            if(line == ""):
-                print_warning(READ_PREFIX + "Nothing received from the serial port")
-                continue
-            read_queue.put_nowait(line)
-            print_ok(READ_PREFIX + "New data received from the serial port")
-        except queue.Full:
-            print_warning("Read queue is full")
-            
+            # Write data
+            try:
+                data = write_queue.get_nowait()
+                ser.write(data.encode("utf-8"))
+                print_ok(write_prefix + "New data sent to the serial port")
+            except queue.Empty:
+                print_warning(write_prefix + "Nothing to send to the serial port")
+
+            # Read data
+            try:
+                ser.reset_input_buffer()
+                ser.readline()
+                line = ser.readline().decode("utf-8")
+                if line == "":
+                    print_warning(read_prefix + "Nothing received from the serial port")
+                    continue
+                read_queue.put_nowait(line)
+                print_ok(read_prefix + "New data received from the serial port")
+            except queue.Full:
+                print_warning("Read queue is full")
+
+        except serial.serialutil.SerialException:
+            print_error(read_prefix + "Serial port is closed")
+            # TODO: Kill the main thread
+
+
 def main():
+    """Main function"""
     if len(sys.argv) != 2:
         print_error("Usage: python3 pyserial_tests.py <serial_port>")
         sys.exit(1)
@@ -191,26 +221,28 @@ def main():
     ser.port = sys.argv[1]
     ser.timeout = 0.5
     ser.open()
-    
+
     bms_hv_data_queue = queue.Queue(maxsize=1)
     bms_hv_settings_queue = queue.Queue(maxsize=1)
 
     threading.Thread(
-        target=serial_task, args=(ser, bms_hv_data_queue, bms_hv_settings_queue), daemon=True
+        target=serial_task,
+        args=(ser, bms_hv_data_queue, bms_hv_settings_queue),
+        daemon=True,
     ).start()
 
     while True:
         event, values = window.read(timeout=1000)
 
         if event == sg.WINDOW_CLOSED or event == "Exit":
-            break;
+            break
 
         elif event == "Start Charging":
             try:
-                bms_hv_settings_queue.put_nowait("@kupa@")
+                bms_hv_settings_queue.put_nowait("a")
             except queue.Full:
                 print_error("Previous command still in the queue")
-        
+
         elif event == "Stop Charging":
             try:
                 bms_hv_settings_queue.put_nowait("b")
@@ -230,30 +262,55 @@ def main():
                 continue
 
             except TypeError:
-                print_error("Received JSON is not of type BmsHvData: " + bms_hv_data_json)
+                print_error(
+                    "Received JSON is not of type BmsHvData: " + bms_hv_data_json
+                )
                 continue
 
-            window[KEY_MAX_VOLTAGE].update(float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3))
-            window[KEY_MIN_VOLTAGE].update(float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3))
-            window[KEY_CURRENT].update(float_to_string_with_precision(bms_hv_data.current, 3))
-            window[KEY_ACC_VOLTAGE].update(float_to_string_with_precision(bms_hv_data.acc_voltage, 3))
-            window[KEY_CAR_VOLTAGE].update(float_to_string_with_precision(bms_hv_data.car_voltage, 3))
-            window[KEY_SOC].update(float_to_string_with_precision((sum(bms_hv_data.soc) / len(bms_hv_data.soc)), 3))
-            
+            window[KEY_MAX_VOLTAGE].update(
+                float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
+            )
+            window[KEY_MIN_VOLTAGE].update(
+                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
+            )
+            window[KEY_CURRENT].update(
+                float_to_string_with_precision(bms_hv_data.current, 3)
+            )
+            window[KEY_ACC_VOLTAGE].update(
+                float_to_string_with_precision(bms_hv_data.acc_voltage, 3)
+            )
+            window[KEY_CAR_VOLTAGE].update(
+                float_to_string_with_precision(bms_hv_data.car_voltage, 3)
+            )
+            window[KEY_SOC].update(
+                float_to_string_with_precision(
+                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc)), 3
+                )
+            )
+
             window[KEY_CELL_VOLTAGE].update(
-                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.cell_voltage]
-, TABLE_COLUMNS)
+                values=to_matrix(
+                    [
+                        float_to_string_with_precision(v, 3)
+                        for v in bms_hv_data.cell_voltage
+                    ],
+                    TABLE_COLUMNS,
+                )
             )
 
             window[KEY_TEMPERATURE].update(
-                values=to_matrix( [float_to_string_with_precision(v, 3) for v in bms_hv_data.temperature]
-, TABLE_COLUMNS)
+                values=to_matrix(
+                    [
+                        float_to_string_with_precision(v, 3)
+                        for v in bms_hv_data.temperature
+                    ],
+                    TABLE_COLUMNS,
+                )
             )
-
 
     ser.close()
     window.close()
-            
+
 
 if __name__ == "__main__":
     main()
