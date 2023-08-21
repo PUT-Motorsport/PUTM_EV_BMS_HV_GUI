@@ -9,7 +9,9 @@ import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
 
-sg.theme("Dark2")
+sg.theme("Material2")
+
+IMAGE_PATH = "putm_logo.png"
 
 TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
@@ -83,7 +85,7 @@ cell_voltage = [
             auto_size_columns=False,
             justification="center",
             num_rows=CELL_VOLTAGE_TABLE_ROWS,
-            enable_events=True,
+            enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_CELL_VOLTAGE,
         )
@@ -103,7 +105,7 @@ temperature = [
             auto_size_columns=False,
             justification="center",
             num_rows=TEMPERATURE_TABLE_ROWS,
-            enable_events=True,
+            enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_TEMPERATURE,
         )
@@ -112,21 +114,22 @@ temperature = [
 
 charge_control = [[sg.Button("Start Charging")], [sg.Button("Stop Charging")]]
 exit_button = [[sg.Button("Exit")]]
+image = [sg.Image(IMAGE_PATH)]
 
 frame_basic_info = [sg.Frame("Basic Info", basic_info)]
 frame_charge_control = [sg.Frame("Charge control", charge_control)]
 
-frame_exit_button = [sg.Frame("Exit", exit_button)]
 frame_cell_voltage = [sg.Frame("Cell Voltages", cell_voltage)]
 frame_temperature = [sg.Frame("Temperatures", temperature)]
+frame_exit_button = [sg.Frame("Exit", exit_button)]
 
-column_left = sg.Column([frame_basic_info, frame_charge_control], element_justification="l", vertical_alignment="top")
-column_right = sg.Column([frame_cell_voltage, frame_temperature, frame_exit_button], element_justification="r", vertical_alignment="top")
+column_left = sg.Column([frame_basic_info, frame_charge_control, frame_exit_button], element_justification="l", vertical_alignment="top")
+column_right = sg.Column([frame_cell_voltage, frame_temperature], element_justification="r", vertical_alignment="top")
 
-layout = [
-    [column_left, column_right],
+layout = [ image,
+    [column_left, sg.VerticalSeparator(pad=None), column_right],
 ]
-window = sg.Window("BMS HV Utility", layout, element_justification="l")
+window = sg.Window("BMS HV Utility", layout, element_justification="c")
 
 def print_ok(msg):
     """Prints an ok message"""
@@ -177,7 +180,7 @@ def main():
 
     ser = serial.Serial()
     ser.port = sys.argv[1]
-    ser.timeout = 0.1
+    ser.timeout = 0.5
     ser.open()
     
     bms_hv_data_queue = queue.Queue(maxsize=1)
@@ -225,6 +228,7 @@ def main():
                 window[KEY_TEMPERATURE].update(
                     values=to_matrix(bms_hv_data.temperature, TABLE_COLUMNS)
                 )
+
 
             except json.decoder.JSONDecodeError:
                 print_error("Invalid JSON: " + bms_hv_data_json)
