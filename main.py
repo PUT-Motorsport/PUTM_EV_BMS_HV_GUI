@@ -200,11 +200,13 @@ def send_message_to_write_queue(write_queue, message):
         print_error("The write queue is full, the message will be discarded")
 
 
-def serial_task(ser, read_queue, write_queue, error_event):
+def serial_task(ser, read_queue, write_queue, this_exit_event, external_exit_event):
     """This function is used to read data from the serial port and to write data to the serial port"""
     write_prefix = "WRITE: "
     read_prefix = "READ: "
     while True:
+        if external_exit_event.is_set():
+            break;
         try:
             # Write data
             try:
@@ -229,9 +231,9 @@ def serial_task(ser, read_queue, write_queue, error_event):
 
         except serial.serialutil.SerialException:
             print_error("Serial port was closed")
-            error_event.set()
             break
-
+    
+    this_exit_event.set()
 
 def main():
     """Main function"""
@@ -244,13 +246,15 @@ def main():
     ser.timeout = 0.5
     ser.open()
 
-    thread_error_event = multiprocessing.Event()
+    thread_exit_event = multiprocessing.Event()
+    main_exit_event = multiprocessing.Event()
+
     bms_hv_data_queue = queue.Queue(maxsize=1)
     bms_hv_settings_queue = queue.Queue(maxsize=1)
 
     threading.Thread(
         target=serial_task,
-        args=(ser, bms_hv_data_queue, bms_hv_settings_queue, thread_error_event),
+        args=(ser, bms_hv_data_queue, bms_hv_settings_queue, thread_exit_event, main_exit_event),
         daemon=True,
     ).start()
 
@@ -260,7 +264,7 @@ def main():
         if event == sg.WINDOW_CLOSED or event == "Exit":
             break
 
-        elif thread_error_event.is_set():
+        elif thread_exit_event.is_set():
             break
 
         elif event == "Start Charging":
@@ -349,9 +353,13 @@ def main():
                 )
             )
 
-    # TODO: Kill the thread
+    main_exit_event.set()
+    thread_exit_event.wait()
+
     ser.close()
     window.close()
+
+    print_ok("Exiting...")
 
 
 if __name__ == "__main__":
