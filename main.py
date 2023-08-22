@@ -228,7 +228,7 @@ def serial_task(ser, read_queue, write_queue, error_event):
                 print_warning("Read queue is full")
 
         except serial.serialutil.SerialException:
-            print_error("Serial port was closed. Is USB cable connected?")
+            print_error("Serial port was closed")
             error_event.set()
             break
 
@@ -349,6 +349,7 @@ def main():
                 )
             )
 
+    # TODO: Kill the thread
     ser.close()
     window.close()
 
