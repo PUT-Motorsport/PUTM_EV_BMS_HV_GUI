@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import queue
 import threading
 import sys
+import multiprocessing
 import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
@@ -61,7 +62,8 @@ basic_info = [
         sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CURRENT, justification="c"),
         sg.Text("A"),
     ],
-            sg.Text("Acc Voltage:"),
+    [
+        sg.Text("Acc Voltage:"),
         sg.Text(
             "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_ACC_VOLTAGE, justification="c"
         ),
@@ -196,7 +198,7 @@ def send_message_to_write_queue(write_queue, message):
         print_error("The write queue is full, the message will be discarded")
 
 
-def serial_task(ser, read_queue, write_queue):
+def serial_task(ser, read_queue, write_queue, error_event):
     """This function is used to read data from the serial port and to write data to the serial port"""
     write_prefix = "WRITE: "
     read_prefix = "READ: "
@@ -224,8 +226,9 @@ def serial_task(ser, read_queue, write_queue):
                 print_warning("Read queue is full")
 
         except serial.serialutil.SerialException:
-            print_error(read_prefix + "Serial port is closed")
-            # TODO: Kill the main thread
+            print_error("Serial port was closed. Is USB cable connected?")
+            error_event.set()
+            break
 
 
 def main():
@@ -238,13 +241,14 @@ def main():
     ser.port = sys.argv[1]
     ser.timeout = 0.5
     ser.open()
-
+    
+    thread_error_event = multiprocessing.Event()
     bms_hv_data_queue = queue.Queue(maxsize=1)
     bms_hv_settings_queue = queue.Queue(maxsize=1)
 
     threading.Thread(
         target=serial_task,
-        args=(ser, bms_hv_data_queue, bms_hv_settings_queue),
+        args=(ser, bms_hv_data_queue, bms_hv_settings_queue, thread_error_event),
         daemon=True,
     ).start()
 
@@ -252,6 +256,9 @@ def main():
         event, values = window.read(timeout=1000)
 
         if event == sg.WINDOW_CLOSED or event == "Exit":
+            break
+        
+        elif thread_error_event.is_set():
             break
 
         elif event == "Start Charging":
