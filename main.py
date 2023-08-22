@@ -29,7 +29,6 @@ KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
 
-
 @dataclass
 class BmsHvData:
     """Dataclass for BMS HV data"""
@@ -62,8 +61,7 @@ basic_info = [
         sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CURRENT, justification="c"),
         sg.Text("A"),
     ],
-    [
-        sg.Text("Acc Voltage:"),
+            sg.Text("Acc Voltage:"),
         sg.Text(
             "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_ACC_VOLTAGE, justification="c"
         ),
@@ -125,8 +123,20 @@ temperature = [
     ]
 ]
 
-charge_control = [[sg.Button("Start Charging")], [sg.Button("Stop Charging")]]
+charge_control = [
+    [sg.Button("Start Charging")],
+    [sg.Button("Stop Charging")],
+    [sg.Button("Start Balance")],
+    [sg.Button("Stop Balance")],
+    [sg.Button("Set Charge Current to 1A")],
+    [sg.Button("Set Charge Current to 2A")],
+    [sg.Button("Set Charge Current to 4A")],
+    [sg.Button("Set Charge Current to 8A")],
+    [sg.Button("Set Charge Current to 12A")],
+]
+
 exit_button = [[sg.Button("Exit")]]
+
 image = [sg.Image(IMAGE_PATH)]
 
 frame_basic_info = [sg.Frame("Basic Info", basic_info)]
@@ -177,6 +187,13 @@ def print_warning(msg):
 def to_matrix(l, columns):
     """Converts a list to a matrix with the specified number of columns"""
     return [l[i : i + columns] for i in range(0, len(l), columns)]
+
+def send_message_to_write_queue(write_queue, message):
+    '''This function is used to send a message to the write queue'''
+    try:
+        write_queue.put_nowait(message)
+    except queue.Full:
+        print_error("The write queue is full, the message will be discarded")
 
 
 def serial_task(ser, read_queue, write_queue):
@@ -238,16 +255,31 @@ def main():
             break
 
         elif event == "Start Charging":
-            try:
-                bms_hv_settings_queue.put_nowait("a")
-            except queue.Full:
-                print_error("Previous command still in the queue")
-
+            send_message_to_write_queue(bms_hv_settings_queue, "!C-ON@")
+        
         elif event == "Stop Charging":
-            try:
-                bms_hv_settings_queue.put_nowait("b")
-            except queue.Full:
-                print_error("Previous command still in the queue")
+            send_message_to_write_queue(bms_hv_settings_queue, "!C-OF@")
+        
+        elif event == "Start Balance":
+            send_message_to_write_queue(bms_hv_settings_queue, "!B-ON@")
+        
+        elif event == "Stop Balance":
+            send_message_to_write_queue(bms_hv_settings_queue, "!B-OF@")
+        
+        elif event == "Set Charge Current to 1A":
+            send_message_to_write_queue(bms_hv_settings_queue, "!I-1A@")
+        
+        elif event == "Set Charge Current to 2A":
+            send_message_to_write_queue(bms_hv_settings_queue, "!I-2A@")
+        
+        elif event == "Set Charge Current to 4A":
+            send_message_to_write_queue(bms_hv_settings_queue, "!I-4A@")
+        
+        elif event == "Set Charge Current to 8A":
+            send_message_to_write_queue(bms_hv_settings_queue, "!I-8A@")
+        
+        elif event == "Set Charge Current to 12A":
+            send_message_to_write_queue(bms_hv_settings_queue, "!I-12@")
 
         elif not bms_hv_data_queue.empty():
             bms_hv_data_json = bms_hv_data_queue.get()
