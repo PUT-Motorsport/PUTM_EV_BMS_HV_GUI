@@ -241,6 +241,8 @@ def main():
         print_error("Usage: python3 pyserial_tests.py <serial_port>")
         sys.exit(1)
 
+    print_ok("Starting...")
+    
     ser = serial.Serial()
     ser.port = sys.argv[1]
     ser.timeout = 0.5
@@ -257,7 +259,7 @@ def main():
         args=(ser, bms_hv_data_queue, bms_hv_settings_queue, thread_exit_event, main_exit_event),
         daemon=True,
     ).start()
-
+    
     while True:
         event, values = window.read(timeout=1000)
 
