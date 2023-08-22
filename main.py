@@ -30,6 +30,7 @@ KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
 
+
 @dataclass
 class BmsHvData:
     """Dataclass for BMS HV data"""
@@ -190,8 +191,9 @@ def to_matrix(l, columns):
     """Converts a list to a matrix with the specified number of columns"""
     return [l[i : i + columns] for i in range(0, len(l), columns)]
 
+
 def send_message_to_write_queue(write_queue, message):
-    '''This function is used to send a message to the write queue'''
+    """This function is used to send a message to the write queue"""
     try:
         write_queue.put_nowait(message)
     except queue.Full:
@@ -241,7 +243,7 @@ def main():
     ser.port = sys.argv[1]
     ser.timeout = 0.5
     ser.open()
-    
+
     thread_error_event = multiprocessing.Event()
     bms_hv_data_queue = queue.Queue(maxsize=1)
     bms_hv_settings_queue = queue.Queue(maxsize=1)
@@ -257,34 +259,34 @@ def main():
 
         if event == sg.WINDOW_CLOSED or event == "Exit":
             break
-        
+
         elif thread_error_event.is_set():
             break
 
         elif event == "Start Charging":
             send_message_to_write_queue(bms_hv_settings_queue, "!C-ON@")
-        
+
         elif event == "Stop Charging":
             send_message_to_write_queue(bms_hv_settings_queue, "!C-OF@")
-        
+
         elif event == "Start Balance":
             send_message_to_write_queue(bms_hv_settings_queue, "!B-ON@")
-        
+
         elif event == "Stop Balance":
             send_message_to_write_queue(bms_hv_settings_queue, "!B-OF@")
-        
+
         elif event == "Set Charge Current to 1A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-1A@")
-        
+
         elif event == "Set Charge Current to 2A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-2A@")
-        
+
         elif event == "Set Charge Current to 4A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-4A@")
-        
+
         elif event == "Set Charge Current to 8A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-8A@")
-        
+
         elif event == "Set Charge Current to 12A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-12@")
 
