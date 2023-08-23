@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import queue
 import threading
 import sys
+import time
 import multiprocessing
 import PySimpleGUI as sg
 import serial
@@ -219,38 +220,57 @@ def serial_task(serial_port, read_queue, write_queue, this_exit_event, external_
     ser = serial.Serial()
     ser.port = serial_port
     ser.timeout = 0.5
-    ser.open()
+    try:
+        ser.open()
+    except serial.serialutil.SerialException:
+        print_error("Failed to open serial port")
+        this_exit_event.set()
+        return
 
     while True:
         if external_exit_event.is_set():
+            ser.close()
             break;
-        try:
-            # Write data
+        else:
             try:
-                data = write_queue.get_nowait()
-                ser.write(data.encode("utf-8"))
-                print_ok(write_prefix + "New data sent to the serial port")
-            except queue.Empty:
-                print_warning(write_prefix + "Nothing to send to the serial port")
+                # Write data
+                try:
+                    data = write_queue.get_nowait()
+                    ser.write(data.encode("utf-8"))
+                    print_ok(write_prefix + "New data sent to the serial port")
+                except queue.Empty:
+                    print_warning(write_prefix + "Nothing to send to the serial port")
 
-            # Read data
-            try:
-                ser.reset_input_buffer()
-                ser.readline()
-                line = ser.readline().decode("utf-8")
-                if line == "":
-                    print_warning(read_prefix + "Nothing received from the serial port")
-                    continue
-                read_queue.put_nowait(line)
-                print_ok(read_prefix + "New data received from the serial port")
-            except queue.Full:
-                print_warning("Read queue is full")
+                # Read data
+                try:
+                    ser.reset_input_buffer()
+                    ser.readline()
+                    line = ser.readline().decode("utf-8")
+                    if line == "":
+                        print_warning(read_prefix + "Nothing received from the serial port")
+                        continue
+                    read_queue.put_nowait(line)
+                    print_ok(read_prefix + "New data received from the serial port")
+                except queue.Full:
+                    print_warning("Read queue is full")
 
-        except serial.serialutil.SerialException:
-            print_error("Serial port was closed")
-            break
+            except serial.serialutil.SerialException:
+                print_error("Serial port was closed")
 
-    ser.close()
+                max_retries = 5
+                for i in range(max_retries):
+                    try:
+                        ser.open()
+                        break
+                    except serial.serialutil.SerialException:
+                        print_error(f"Failed to open serial port, retry {i+1}/{max_retries}")
+                        time.sleep(2)
+                        continue
+                
+                if i == max_retries - 1:
+                    print_error("Failed to open serial port")
+                    break
+
     this_exit_event.set()
 
 def main():
