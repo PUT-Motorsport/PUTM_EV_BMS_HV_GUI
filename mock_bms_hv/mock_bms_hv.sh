@@ -11,4 +11,7 @@ do
    cat $3 > $SERIAL_PORT
    sleep 1
 
+   cat $3 > $SERIAL_PORT
+   sleep 1
+
  done

@@ -50,17 +50,26 @@ class BmsHvData:
 basic_info = [
     [
         sg.Text("Max Voltage:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Min Voltage:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"
+        ),
         sg.Text("V"),
     ],
     [
         sg.Text("Max Temp:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_TEMPERATURE, justification="c"),
+        sg.Text(
+            "-",
+            size=(STANDARD_TEXT_WIDTH, 1),
+            key=KEY_MAX_TEMPERATURE,
+            justification="c",
+        ),
         sg.Text("°C"),
     ],
     [
@@ -89,10 +98,11 @@ basic_info = [
     ],
     [
         sg.Text("Timestamp:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"
+        ),
         sg.Text("s"),
-    ]
-    ,
+    ],
 ]
 
 cell_voltage = [
@@ -212,14 +222,17 @@ def send_message_to_write_queue(write_queue, message):
         print_error("The write queue is full, the message will be discarded")
 
 
-def serial_task(serial_port, read_queue, write_queue, this_exit_event, external_exit_event):
-    """This function is used to read data from the serial port and to write data to the serial port"""
+def serial_task(port, read_queue, write_queue, this_exit_event, external_exit_event):
+    """This function is used to read data from and to write data to the serial port"""
     write_prefix = "WRITE: "
     read_prefix = "READ: "
-    
+    nothing_received_counter = 0
+
     ser = serial.Serial()
-    ser.port = serial_port
-    ser.timeout = 0.5
+    ser.port = port
+    # this value has to be bigger than frequency of sending data from BMS HV
+    ser.timeout = 1.2
+
     try:
         ser.open()
     except serial.serialutil.SerialException:
@@ -230,48 +243,60 @@ def serial_task(serial_port, read_queue, write_queue, this_exit_event, external_
     while True:
         if external_exit_event.is_set():
             ser.close()
-            break;
-        else:
+            break
+        try:
+            # Write data
             try:
-                # Write data
-                try:
-                    data = write_queue.get_nowait()
-                    ser.write(data.encode("utf-8"))
-                    print_ok(write_prefix + "New data sent to the serial port")
-                except queue.Empty:
-                    print_warning(write_prefix + "Nothing to send to the serial port")
+                data = write_queue.get_nowait()
+                ser.write(data.encode("utf-8"))
+                print_ok(write_prefix + "New data sent to the serial port")
+            except queue.Empty:
+                print_warning(write_prefix + "Nothing to send to the serial port")
 
-                # Read data
-                try:
-                    ser.reset_input_buffer()
-                    ser.readline()
-                    line = ser.readline().decode("utf-8")
-                    if line == "":
-                        print_warning(read_prefix + "Nothing received from the serial port")
-                        continue
-                    read_queue.put_nowait(line)
-                    print_ok(read_prefix + "New data received from the serial port")
-                except queue.Full:
-                    print_warning("Read queue is full")
+            # Read data
+            try:
+                ser.reset_input_buffer()
+                ser.readline()
+                line = ser.readline().decode("utf-8")
 
-            except serial.serialutil.SerialException:
-                print_error("Serial port was closed")
-
-                max_retries = 5
-                for i in range(max_retries):
-                    try:
-                        ser.open()
+                if line == "":
+                    print_error(read_prefix + "Nothing received from the serial port")
+                    nothing_received_counter += 1
+                    if nothing_received_counter >= 10:
+                        print_error(
+                            read_prefix
+                            + "Nothing received from the serial port for too long"
+                        )
                         break
-                    except serial.serialutil.SerialException:
-                        print_error(f"Failed to open serial port, retry {i+1}/{max_retries}")
-                        time.sleep(2)
-                        continue
-                
-                if i == max_retries - 1:
-                    print_error("Failed to open serial port")
+                    continue
+
+                nothing_received_counter = 0
+                read_queue.put_nowait(line)
+                print_ok(read_prefix + "New data received from the serial port")
+
+            except queue.Full:
+                print_warning("Read queue is full")
+
+        except serial.serialutil.SerialException:
+            print_error("Serial port was closed")
+
+            max_retries = 5
+            for i in range(max_retries):
+                try:
+                    ser.open()
                     break
+                except serial.serialutil.SerialException:
+                    print_error(
+                        f"Failed to open serial port, retry {i+1}/{max_retries}"
+                    )
+                    time.sleep(2)
+                    continue
+            if i == max_retries - 1:
+                print_error("Failed to open serial port")
+                break
 
     this_exit_event.set()
+
 
 def main():
     """Main function"""
@@ -280,8 +305,7 @@ def main():
         sys.exit(1)
 
     print_ok("Starting...")
-    
-    
+
     thread_exit_event = multiprocessing.Event()
     main_exit_event = multiprocessing.Event()
 
@@ -290,10 +314,16 @@ def main():
 
     threading.Thread(
         target=serial_task,
-        args=(sys.argv[1], bms_hv_data_queue, bms_hv_settings_queue, thread_exit_event, main_exit_event),
+        args=(
+            sys.argv[1],
+            bms_hv_data_queue,
+            bms_hv_settings_queue,
+            thread_exit_event,
+            main_exit_event,
+        ),
         daemon=True,
     ).start()
-    
+
     while True:
         event, values = window.read(timeout=1000)
 
@@ -368,7 +398,7 @@ def main():
             )
             window[KEY_SOC].update(
                 float_to_string_with_precision(
-                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc)), 3
+                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc) * 100), 3
                 )
             )
 
@@ -396,8 +426,8 @@ def main():
     thread_exit_event.wait()
 
     window.close()
-
     print_ok("Exiting...")
+    return 0
 
 
 if __name__ == "__main__":
