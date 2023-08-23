@@ -9,6 +9,7 @@ import multiprocessing
 import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
+import numpy as np
 
 sg.theme("Material2")
 sg.set_options(font=("Helvetica", 13))
@@ -23,12 +24,14 @@ TEMPERATURE_TABLE_ROWS = 3
 
 KEY_MAX_VOLTAGE = "-MAX-VOLTAGE-"
 KEY_MIN_VOLTAGE = "-MIN-VOLTAGE-"
+KEY_MAX_TEMPERATURE = "-MAX-TEMPERATURE-"
 KEY_CURRENT = "-CURRENT-"
 KEY_ACC_VOLTAGE = "-ACC-VOLTAGE-"
 KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
 KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
+KEY_TIMESTAMP = "-TIMESTAMP-"
 
 
 @dataclass
@@ -46,17 +49,18 @@ class BmsHvData:
 basic_info = [
     [
         sg.Text("Max Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"
-        ),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"),
         sg.Text("V"),
     ],
     [
         sg.Text("Min Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"
-        ),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"),
         sg.Text("V"),
+    ],
+    [
+        sg.Text("Max Temp:"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_TEMPERATURE, justification="c"),
+        sg.Text("°C"),
     ],
     [
         sg.Text("Current:"),
@@ -82,6 +86,12 @@ basic_info = [
         sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC, justification="c"),
         sg.Text("%"),
     ],
+    [
+        sg.Text("Timestamp:"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"),
+        sg.Text("s"),
+    ]
+    ,
 ]
 
 cell_voltage = [
@@ -91,7 +101,7 @@ cell_voltage = [
                 ["-" for i in range(TABLE_COLUMNS)]
                 for j in range(CELL_VOLTAGE_TABLE_ROWS)
             ],
-            headings=[f"Col {j+1}" for j in range(TABLE_COLUMNS)],
+            headings=[f"LTC {j+1}" for j in range(TABLE_COLUMNS)],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=True,
             auto_size_columns=False,
@@ -189,7 +199,8 @@ def print_warning(msg):
 
 def to_matrix(l, columns):
     """Converts a list to a matrix with the specified number of columns"""
-    return [l[i : i + columns] for i in range(0, len(l), columns)]
+    matrix = np.reshape(np.array(l), (columns, -1)).T
+    return matrix.tolist()
 
 
 def send_message_to_write_queue(write_queue, message):
@@ -200,10 +211,16 @@ def send_message_to_write_queue(write_queue, message):
         print_error("The write queue is full, the message will be discarded")
 
 
-def serial_task(ser, read_queue, write_queue, this_exit_event, external_exit_event):
+def serial_task(serial_port, read_queue, write_queue, this_exit_event, external_exit_event):
     """This function is used to read data from the serial port and to write data to the serial port"""
     write_prefix = "WRITE: "
     read_prefix = "READ: "
+    
+    ser = serial.Serial()
+    ser.port = serial_port
+    ser.timeout = 0.5
+    ser.open()
+
     while True:
         if external_exit_event.is_set():
             break;
@@ -232,7 +249,8 @@ def serial_task(ser, read_queue, write_queue, this_exit_event, external_exit_eve
         except serial.serialutil.SerialException:
             print_error("Serial port was closed")
             break
-    
+
+    ser.close()
     this_exit_event.set()
 
 def main():
@@ -243,11 +261,7 @@ def main():
 
     print_ok("Starting...")
     
-    ser = serial.Serial()
-    ser.port = sys.argv[1]
-    ser.timeout = 0.5
-    ser.open()
-
+    
     thread_exit_event = multiprocessing.Event()
     main_exit_event = multiprocessing.Event()
 
@@ -256,7 +270,7 @@ def main():
 
     threading.Thread(
         target=serial_task,
-        args=(ser, bms_hv_data_queue, bms_hv_settings_queue, thread_exit_event, main_exit_event),
+        args=(sys.argv[1], bms_hv_data_queue, bms_hv_settings_queue, thread_exit_event, main_exit_event),
         daemon=True,
     ).start()
     
@@ -320,6 +334,9 @@ def main():
             window[KEY_MIN_VOLTAGE].update(
                 float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
             )
+            window[KEY_MAX_TEMPERATURE].update(
+                float_to_string_with_precision(max(bms_hv_data.temperature), 3)
+            )
             window[KEY_CURRENT].update(
                 float_to_string_with_precision(bms_hv_data.current, 3)
             )
@@ -358,7 +375,6 @@ def main():
     main_exit_event.set()
     thread_exit_event.wait()
 
-    ser.close()
     window.close()
 
     print_ok("Exiting...")
