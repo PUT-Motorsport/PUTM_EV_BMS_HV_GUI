@@ -353,7 +353,7 @@ def main():
         elif event == "Set Charge Current to 12A":
             send_message_to_write_queue(bms_hv_settings_queue, "!I-12@")
 
-        elif not bms_hv_data_queue.empty():
+        if not bms_hv_data_queue.empty():
             bms_hv_data_json = bms_hv_data_queue.get()
             try:
                 bms_hv_data = json.loads(
