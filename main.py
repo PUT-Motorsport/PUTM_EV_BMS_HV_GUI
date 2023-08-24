@@ -17,7 +17,7 @@ sg.set_options(font=("Helvetica", 13))
 
 IMAGE_PATH = "putm_logo.png"
 
-STANDARD_TEXT_WIDTH = 7
+STANDARD_TEXT_WIDTH = 8
 
 TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
@@ -235,6 +235,11 @@ def float_to_string_with_precision(value, precision):
     return f"{value:.{precision}f}"
 
 
+def mark_cell_if_balancing(value, is_balancing):
+    """Marks a cell if it is balancing"""
+    return (f"|{value}|") if is_balancing else value
+
+
 def print_ok(msg):
     """Prints an ok message"""
     print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
@@ -447,7 +452,7 @@ def main():
             window[KEY_CELL_VOLTAGE].update(
                 values=to_matrix(
                     [
-                        float_to_string_with_precision(v, 3)
+                        mark_cell_if_balancing(float_to_string_with_precision(v, 3), True)
                         for v in bms_hv_data.cell_voltage
                     ],
                     TABLE_COLUMNS,
