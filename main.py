@@ -33,6 +33,8 @@ KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
 KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
+KEY_CHARGING_STATUS = "-CHARGING-STATUS-"
+KEY_BALANCING_STATUS = "-BALANCING-STATUS-"
 
 
 @dataclass
@@ -103,6 +105,24 @@ basic_info = [
         sg.Text("Soc:"),
         sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC, justification="c"),
         sg.Text("%"),
+    ],
+    [
+        sg.Text("Charging Status:"),
+        sg.Text(
+            "-",
+            size=(STANDARD_TEXT_WIDTH, 1),
+            key=KEY_CHARGING_STATUS,
+            justification="c",
+        ),
+    ],
+    [
+        sg.Text("Balancing Status:"),
+        sg.Text(
+            "-",
+            size=(STANDARD_TEXT_WIDTH, 1),
+            key=KEY_BALANCING_STATUS,
+            justification="c",
+        ),
     ],
 ]
 
@@ -246,7 +266,6 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
             continue
 
     while True:
-        
         if exit_event.is_set():
             ser.close()
             return
