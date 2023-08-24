@@ -19,24 +19,37 @@ IMAGE_PATH = "putm_logo.png"
 
 STANDARD_TEXT_WIDTH = 8
 
-TABLE_COLUMNS = 15
+CELL_VOLTAGE_TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
+
+TEMPERATURE_TABLE_COLUMNS = 15
 TEMPERATURE_TABLE_ROWS = 3
+
+ERROR_TABLE_COLUMNS = 6
+ERROR_TABLE_ROWS = 1
+
+SOC_TABLE_COLUMNS = 4
+SOC_TABLE_ROWS = 1
 
 KEY_CONNECTION_STATUS = "-CONNECTION-STATUS-"
 KEY_TIMESTAMP = "-TIMESTAMP-"
-KEY_MAX_VOLTAGE = "-MAX-VOLTAGE-"
-KEY_MIN_VOLTAGE = "-MIN-VOLTAGE-"
+
+KEY_CELL_MAX_VOLTAGE = "-MAX-VOLTAGE-"
+KEY_CELL_MAX_VOLTAGE_LTC = "-MAX-VOLTAGE-LTC-"
+KEY_CELL_MAX_VOLTAGE_CELL = "-MAX-VOLTAGE-CELL-"
+
+KEY_CELL_MIN_VOLTAGE = "-MIN-VOLTAGE-"
+KEY_CELL_MIN_VOLTAGE_LTC = "-MIN-VOLTAGE-LTC-"
+KEY_CELL_MIN_VOLTAGE_CELL = "-MIN-VOLTAGE-CELL-"
+
 KEY_MAX_TEMPERATURE = "-MAX-TEMPERATURE-"
 KEY_CURRENT = "-CURRENT-"
 KEY_ACC_VOLTAGE = "-ACC-VOLTAGE-"
 KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
-KEY_SOC_MIN = "-SOC-MIN-"
-KEY_SOC_MAX = "-SOC-MAX-"
-KEY_SOC_AVG = "-SOC-AVG-"
-KEY_SOC_MEDIAN = "-SOC-MEDIAN-"
+KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
+KEY_ERROR = "-CELL-ERRORS-"
 KEY_CHARGING_STATUS = "-CHARGING-STATUS-"
 KEY_BALANCING_STATUS = "-BALANCING-STATUS-"
 
@@ -54,37 +67,13 @@ class BmsHvData:
 
 
 basic_info = [
-    [sg.Text("Connection Status: "), sg.Text("-", key="-CONNECTION-STATUS-")],
+    [sg.Text("Connection Status: "), sg.Text("-", key=KEY_CONNECTION_STATUS)],
     [
         sg.Text("Timestamp:"),
         sg.Text(
             "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"
         ),
         sg.Text("s"),
-    ],
-    [
-        sg.Text("Max Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MAX_VOLTAGE, justification="c"
-        ),
-        sg.Text("V"),
-    ],
-    [
-        sg.Text("Min Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_MIN_VOLTAGE, justification="c"
-        ),
-        sg.Text("V"),
-    ],
-    [
-        sg.Text("Max Temp:"),
-        sg.Text(
-            "-",
-            size=(STANDARD_TEXT_WIDTH, 1),
-            key=KEY_MAX_TEMPERATURE,
-            justification="c",
-        ),
-        sg.Text("°C"),
     ],
     [
         sg.Text("Current:"),
@@ -104,28 +93,6 @@ basic_info = [
             "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CAR_VOLTAGE, justification="c"
         ),
         sg.Text("V"),
-    ],
-    [
-        sg.Text("Soc Min:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MIN, justification="c"),
-        sg.Text("%"),
-    ],
-    [
-        sg.Text("Soc Max:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MAX, justification="c"),
-        sg.Text("%"),
-    ],
-    [
-        sg.Text("Soc Avg:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_AVG, justification="c"),
-        sg.Text("%"),
-    ],
-    [
-        sg.Text("Soc Median:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MEDIAN, justification="c"
-        ),
-        sg.Text("%"),
     ],
     [
         sg.Text("Charging Status:"),
@@ -151,10 +118,10 @@ cell_voltage = [
     [
         sg.Table(
             values=[
-                ["-" for i in range(TABLE_COLUMNS)]
+                ["-" for i in range(CELL_VOLTAGE_TABLE_COLUMNS)]
                 for j in range(CELL_VOLTAGE_TABLE_ROWS)
             ],
-            headings=[f"LTC {j+1}" for j in range(TABLE_COLUMNS)],
+            headings=[f"LTC {j+1}" for j in range(CELL_VOLTAGE_TABLE_COLUMNS)],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=True,
             auto_size_columns=False,
@@ -165,17 +132,35 @@ cell_voltage = [
             key=KEY_CELL_VOLTAGE,
             def_col_width=STANDARD_TEXT_WIDTH,
         )
-    ]
+    ],
+    [
+        sg.Text("Max Voltage:"),
+        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE, justification="l"),
+        sg.Text("V"),
+        sg.Text("LTC:"),
+        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE_LTC, justification="l"),
+        sg.Text("Cell:"),
+        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE_CELL, justification="l"),
+    ],
+    [
+        sg.Text("Min Voltage:"),
+        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE, justification="l"),
+        sg.Text("V"),
+        sg.Text("LTC:"),
+        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE_LTC, justification="l"),
+        sg.Text("Cell:"),
+        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE_CELL, justification="l"),
+    ],
 ]
 
 temperature = [
     [
         sg.Table(
             values=[
-                ["-" for i in range(TABLE_COLUMNS)]
+                ["-" for i in range(TEMPERATURE_TABLE_COLUMNS)]
                 for j in range(TEMPERATURE_TABLE_ROWS)
             ],
-            headings=[f"Col {j+1}" for j in range(TABLE_COLUMNS)],
+            headings=[f"Col {j+1}" for j in range(TEMPERATURE_TABLE_COLUMNS)],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=True,
             auto_size_columns=False,
@@ -186,8 +171,67 @@ temperature = [
             key=KEY_TEMPERATURE,
             def_col_width=STANDARD_TEXT_WIDTH,
         )
+    ],
+    [
+        sg.Text("Max Temp:"),
+        sg.Text("-", key=KEY_MAX_TEMPERATURE, justification="L"),
+        sg.Text("°C"),
+    ],
+]
+
+error = [
+    [
+        sg.Table(
+            values=[
+                ["-" for i in range(ERROR_TABLE_COLUMNS)]
+                for j in range(ERROR_TABLE_ROWS)
+            ],
+            headings=[
+                "Under Voltage",
+                "Over Voltage",
+                "Under Temperature",
+                "Over Temperature",
+                "Over Current",
+                "Current Sensor Status",
+            ],
+            select_mode=sg.TABLE_SELECT_MODE_NONE,
+            display_row_numbers=False,
+            auto_size_columns=False,
+            justification="c",
+            num_rows=ERROR_TABLE_ROWS,
+            enable_events=False,
+            hide_vertical_scroll=True,
+            key=KEY_ERROR,
+            def_col_width=17,
+        )
     ]
 ]
+
+soc = [
+    [
+        sg.Table(
+            values=[
+                ["-" for i in range(SOC_TABLE_COLUMNS)] for j in range(SOC_TABLE_ROWS)
+            ],
+            headings=[
+                "Min",
+                "Max",
+                "Avg",
+                "Median",
+            ],
+            select_mode=sg.TABLE_SELECT_MODE_NONE,
+            display_row_numbers=False,
+            auto_size_columns=False,
+            justification="c",
+            num_rows=SOC_TABLE_ROWS,
+            enable_events=False,
+            hide_vertical_scroll=True,
+            key=KEY_SOC,
+            def_col_width=STANDARD_TEXT_WIDTH,
+        )
+    ]
+]
+
 
 charge_control = [
     [sg.Button("Start Charging")],
@@ -207,10 +251,12 @@ image = [sg.Image(IMAGE_PATH)]
 
 frame_basic_info = [sg.Frame("Basic Info", basic_info)]
 frame_charge_control = [sg.Frame("Charge control", charge_control)]
+frame_exit_button = [sg.Frame("Exit", exit_button)]
 
 frame_cell_voltage = [sg.Frame("Cell Voltages", cell_voltage)]
 frame_temperature = [sg.Frame("Temperatures", temperature)]
-frame_exit_button = [sg.Frame("Exit", exit_button)]
+frame_error = [sg.Frame("Errors", error)]
+frame_soc = [sg.Frame("Soc", soc)]
 
 column_left = sg.Column(
     [frame_basic_info, frame_charge_control, frame_exit_button],
@@ -218,8 +264,8 @@ column_left = sg.Column(
     vertical_alignment="top",
 )
 column_right = sg.Column(
-    [frame_cell_voltage, frame_temperature],
-    element_justification="r",
+    [frame_error, frame_cell_voltage, frame_temperature, frame_soc],
+    element_justification="l",
     vertical_alignment="top",
 )
 
@@ -416,10 +462,10 @@ def main():
                 )
                 continue
 
-            window[KEY_MAX_VOLTAGE].update(
+            window[KEY_CELL_MAX_VOLTAGE].update(
                 float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
             )
-            window[KEY_MIN_VOLTAGE].update(
+            window[KEY_CELL_MIN_VOLTAGE].update(
                 float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
             )
             window[KEY_MAX_TEMPERATURE].update(
@@ -434,28 +480,16 @@ def main():
             window[KEY_CAR_VOLTAGE].update(
                 float_to_string_with_precision(bms_hv_data.car_voltage, 3)
             )
-            window[KEY_SOC_MIN].update(
-                float_to_string_with_precision(min(bms_hv_data.soc) * 100, 3)
-            )
-            window[KEY_SOC_MAX].update(
-                float_to_string_with_precision(max(bms_hv_data.soc) * 100, 3)
-            )
-            window[KEY_SOC_AVG].update(
-                float_to_string_with_precision(
-                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc)) * 100, 3
-                )
-            )
-            window[KEY_SOC_MEDIAN].update(
-                float_to_string_with_precision(median(bms_hv_data.soc) * 100, 3)
-            )
 
             window[KEY_CELL_VOLTAGE].update(
                 values=to_matrix(
                     [
-                        mark_cell_if_balancing(float_to_string_with_precision(v, 3), True)
+                        mark_cell_if_balancing(
+                            float_to_string_with_precision(v, 3), True
+                        )
                         for v in bms_hv_data.cell_voltage
                     ],
-                    TABLE_COLUMNS,
+                    CELL_VOLTAGE_TABLE_COLUMNS,
                 )
             )
 
@@ -465,7 +499,24 @@ def main():
                         float_to_string_with_precision(v, 3)
                         for v in bms_hv_data.temperature
                     ],
-                    TABLE_COLUMNS,
+                    TEMPERATURE_TABLE_COLUMNS,
+                )
+            )
+
+            window[KEY_SOC].update(
+                values=to_matrix(
+                    [
+                        [
+                            float_to_string_with_precision(v * 100, 3)
+                            for v in [
+                                min(bms_hv_data.soc),
+                                max(bms_hv_data.soc),
+                                sum(bms_hv_data.soc) / len(bms_hv_data.soc),
+                                median(bms_hv_data.soc),
+                            ]
+                        ]
+                    ],
+                    SOC_TABLE_COLUMNS,
                 )
             )
 
