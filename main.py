@@ -6,7 +6,6 @@ import queue
 import threading
 import sys
 import time
-import multiprocessing
 import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
@@ -23,6 +22,8 @@ TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
 TEMPERATURE_TABLE_ROWS = 3
 
+KEY_CONNECTION_STATUS = "-CONNECTION-STATUS-"
+KEY_TIMESTAMP = "-TIMESTAMP-"
 KEY_MAX_VOLTAGE = "-MAX-VOLTAGE-"
 KEY_MIN_VOLTAGE = "-MIN-VOLTAGE-"
 KEY_MAX_TEMPERATURE = "-MAX-TEMPERATURE-"
@@ -32,7 +33,6 @@ KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
 KEY_SOC = "-SOC-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
-KEY_TIMESTAMP = "-TIMESTAMP-"
 
 
 @dataclass
@@ -48,6 +48,14 @@ class BmsHvData:
 
 
 basic_info = [
+    [sg.Text("Connection Status: "), sg.Text("-", key="-CONNECTION-STATUS-")],
+    [
+        sg.Text("Timestamp:"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"
+        ),
+        sg.Text("s"),
+    ],
     [
         sg.Text("Max Voltage:"),
         sg.Text(
@@ -95,13 +103,6 @@ basic_info = [
         sg.Text("Soc:"),
         sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC, justification="c"),
         sg.Text("%"),
-    ],
-    [
-        sg.Text("Timestamp:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"
-        ),
-        sg.Text("s"),
     ],
 ]
 
@@ -222,80 +223,69 @@ def send_message_to_write_queue(write_queue, message):
         print_error("The write queue is full, the message will be discarded")
 
 
-def serial_task(port, read_queue, write_queue, this_exit_event, external_exit_event):
+def serial_task(port, read_queue, write_queue, connected_event, exit_event):
     """This function is used to read data from and to write data to the serial port"""
     write_prefix = "WRITE: "
     read_prefix = "READ: "
-    nothing_received_counter = 0
 
     ser = serial.Serial()
     ser.port = port
     # this value has to be bigger than frequency of sending data from BMS HV
     ser.timeout = 1.2
 
-    try:
-        ser.open()
-    except serial.serialutil.SerialException:
-        print_error("Failed to open serial port")
-        this_exit_event.set()
-        return
+    while not ser.is_open:
+        if exit_event.is_set():
+            return
+        try:
+            ser.open()
+            connected_event.set()
+            print_ok("Serial port opened")
+        except serial.serialutil.SerialException:
+            print_error("Failed to open serial port")
+            time.sleep(1)
+            continue
 
     while True:
-        if external_exit_event.is_set():
+        
+        if exit_event.is_set():
             ser.close()
-            break
+            return
         try:
             # Write data
             try:
                 data = write_queue.get_nowait()
                 ser.write(data.encode("utf-8"))
-                print_ok(write_prefix + "New data sent to the serial port")
+                print_ok(f"{write_prefix} New data sent to the serial port")
             except queue.Empty:
-                print_warning(write_prefix + "Nothing to send to the serial port")
+                print_warning(f"{write_prefix} Nothing to send to the serial port")
 
             # Read data
             try:
                 ser.reset_input_buffer()
                 ser.readline()
                 line = ser.readline().decode("utf-8")
-
                 if line == "":
-                    print_error(read_prefix + "Nothing received from the serial port")
-                    nothing_received_counter += 1
-                    if nothing_received_counter >= 10:
-                        print_error(
-                            read_prefix
-                            + "Nothing received from the serial port for too long"
-                        )
-                        break
+                    print_error(f"{read_prefix} Nothing received from the serial port")
                     continue
-
-                nothing_received_counter = 0
                 read_queue.put_nowait(line)
-                print_ok(read_prefix + "New data received from the serial port")
-
+                print_ok(f"{read_prefix} New data received from the serial port")
             except queue.Full:
                 print_warning("Read queue is full")
 
         except serial.serialutil.SerialException:
+            connected_event.clear()
             print_error("Serial port was closed")
-
-            max_retries = 5
-            for i in range(max_retries):
+            while True:
+                if exit_event.is_set():
+                    return
                 try:
                     ser.open()
+                    connected_event.set()
                     break
                 except serial.serialutil.SerialException:
-                    print_error(
-                        f"Failed to open serial port, retry {i+1}/{max_retries}"
-                    )
-                    time.sleep(2)
+                    print_error("Failed to open serial port")
+                    time.sleep(1)
                     continue
-            if i == max_retries - 1:
-                print_error("Failed to open serial port")
-                break
-
-    this_exit_event.set()
 
 
 def main():
@@ -306,31 +296,34 @@ def main():
 
     print_ok("Starting...")
 
-    thread_exit_event = multiprocessing.Event()
-    main_exit_event = multiprocessing.Event()
+    serial_task_connected_event = threading.Event()
+    main_exit_event = threading.Event()
 
     bms_hv_data_queue = queue.Queue(maxsize=1)
     bms_hv_settings_queue = queue.Queue(maxsize=1)
 
-    threading.Thread(
+    serial_task_thread = threading.Thread(
         target=serial_task,
         args=(
             sys.argv[1],
             bms_hv_data_queue,
             bms_hv_settings_queue,
-            thread_exit_event,
+            serial_task_connected_event,
             main_exit_event,
         ),
         daemon=True,
-    ).start()
+    )
+    serial_task_thread.start()
 
     while True:
         event, values = window.read(timeout=1000)
 
-        if event == sg.WINDOW_CLOSED or event == "Exit":
-            break
+        if serial_task_connected_event.is_set():
+            window[KEY_CONNECTION_STATUS].update("Connected")
+        else:
+            window[KEY_CONNECTION_STATUS].update("Disconnected")
 
-        elif thread_exit_event.is_set():
+        if event == sg.WINDOW_CLOSED or event == "Exit":
             break
 
         elif event == "Start Charging":
@@ -369,12 +362,12 @@ def main():
                 bms_hv_data = BmsHvData(**bms_hv_data.__dict__)
 
             except json.decoder.JSONDecodeError:
-                print_error("Invalid JSON: " + bms_hv_data_json)
+                print_error(f"Invalid JSON: {bms_hv_data_json}")
                 continue
 
             except TypeError:
                 print_error(
-                    "Received JSON is not of type BmsHvData: " + bms_hv_data_json
+                    f"Received JSON is not of type BmsHvData: {bms_hv_data_json}"
                 )
                 continue
 
@@ -423,7 +416,7 @@ def main():
             )
 
     main_exit_event.set()
-    thread_exit_event.wait()
+    serial_task_thread.join()
 
     window.close()
     print_ok("Exiting...")
