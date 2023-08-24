@@ -10,6 +10,7 @@ import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
 import numpy as np
+from statistics import median
 
 sg.theme("Material2")
 sg.set_options(font=("Helvetica", 13))
@@ -30,7 +31,10 @@ KEY_MAX_TEMPERATURE = "-MAX-TEMPERATURE-"
 KEY_CURRENT = "-CURRENT-"
 KEY_ACC_VOLTAGE = "-ACC-VOLTAGE-"
 KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
-KEY_SOC = "-SOC-"
+KEY_SOC_MIN = "-SOC-MIN-"
+KEY_SOC_MAX = "-SOC-MAX-"
+KEY_SOC_AVG = "-SOC-AVG-"
+KEY_SOC_MEDIAN = "-SOC-MEDIAN-"
 KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
 KEY_CHARGING_STATUS = "-CHARGING-STATUS-"
@@ -102,8 +106,25 @@ basic_info = [
         sg.Text("V"),
     ],
     [
-        sg.Text("Soc:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC, justification="c"),
+        sg.Text("Soc Min:"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MIN, justification="c"),
+        sg.Text("%"),
+    ],
+    [
+        sg.Text("Soc Max:"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MAX, justification="c"),
+        sg.Text("%"),
+    ],
+    [
+        sg.Text("Soc Avg:"),
+        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_AVG, justification="c"),
+        sg.Text("%"),
+    ],
+    [
+        sg.Text("Soc Median:"),
+        sg.Text(
+            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_SOC_MEDIAN, justification="c"
+        ),
         sg.Text("%"),
     ],
     [
@@ -302,7 +323,7 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                     connected_event.set()
                     break
                 except serial.serialutil.SerialException:
-                    print_error("Failed to open serial port")
+                    print_error("Failed to reopen serial port")
                     time.sleep(1)
                     continue
 
@@ -408,10 +429,19 @@ def main():
             window[KEY_CAR_VOLTAGE].update(
                 float_to_string_with_precision(bms_hv_data.car_voltage, 3)
             )
-            window[KEY_SOC].update(
+            window[KEY_SOC_MIN].update(
+                float_to_string_with_precision(min(bms_hv_data.soc) * 100, 3)
+            )
+            window[KEY_SOC_MAX].update(
+                float_to_string_with_precision(max(bms_hv_data.soc) * 100, 3)
+            )
+            window[KEY_SOC_AVG].update(
                 float_to_string_with_precision(
-                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc) * 100), 3
+                    (sum(bms_hv_data.soc) / len(bms_hv_data.soc)) * 100, 3
                 )
+            )
+            window[KEY_SOC_MEDIAN].update(
+                float_to_string_with_precision(median(bms_hv_data.soc) * 100, 3)
             )
 
             window[KEY_CELL_VOLTAGE].update(
