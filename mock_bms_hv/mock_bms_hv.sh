@@ -6,12 +6,12 @@ while true
 do
  
    cat $2 > $SERIAL_PORT
-   sleep 1
+   sleep 0.3
 
    cat $3 > $SERIAL_PORT
-   sleep 1
+   sleep 0.3
 
    cat $3 > $SERIAL_PORT
-   sleep 1
+   sleep 0.3
 
  done

@@ -346,7 +346,7 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
             try:
                 data = write_queue.get_nowait()
                 ser.write(data.encode("utf-8"))
-                print_ok(f"{write_prefix} New data sent to the serial port")
+                print_ok(f"{write_prefix} New data sent to the serial port: {data}")
             except queue.Empty:
                 print_warning(f"{write_prefix} Nothing to send to the serial port")
 
@@ -390,15 +390,15 @@ def main():
     serial_task_connected_event = threading.Event()
     main_exit_event = threading.Event()
 
-    bms_hv_data_queue = queue.Queue(maxsize=1)
-    bms_hv_settings_queue = queue.Queue(maxsize=1)
+    bms_hv_read_queue = queue.Queue(maxsize=1)
+    bms_hv_write_queue = queue.Queue(maxsize=1)
 
     serial_task_thread = threading.Thread(
         target=serial_task,
         args=(
             sys.argv[1],
-            bms_hv_data_queue,
-            bms_hv_settings_queue,
+            bms_hv_read_queue,
+            bms_hv_write_queue,
             serial_task_connected_event,
             main_exit_event,
         ),
@@ -418,34 +418,36 @@ def main():
             break
 
         elif event == "Start Charging":
-            send_message_to_write_queue(bms_hv_settings_queue, "!C-ON@")
+            send_message_to_write_queue(bms_hv_write_queue, "!C-ON@")
 
         elif event == "Stop Charging":
-            send_message_to_write_queue(bms_hv_settings_queue, "!C-OF@")
+            send_message_to_write_queue(bms_hv_write_queue, "!C-OF@")
 
         elif event == "Start Balance":
-            send_message_to_write_queue(bms_hv_settings_queue, "!B-ON@")
+            send_message_to_write_queue(bms_hv_write_queue, "!B-ON@")
 
         elif event == "Stop Balance":
-            send_message_to_write_queue(bms_hv_settings_queue, "!B-OF@")
+            send_message_to_write_queue(bms_hv_write_queue, "!B-OF@")
 
         elif event == "Set Charge Current to 1A":
-            send_message_to_write_queue(bms_hv_settings_queue, "!I-1A@")
+            send_message_to_write_queue(bms_hv_write_queue, "!I-1A@")
 
         elif event == "Set Charge Current to 2A":
-            send_message_to_write_queue(bms_hv_settings_queue, "!I-2A@")
+            send_message_to_write_queue(bms_hv_write_queue, "!I-2A@")
 
         elif event == "Set Charge Current to 4A":
-            send_message_to_write_queue(bms_hv_settings_queue, "!I-4A@")
+            send_message_to_write_queue(bms_hv_write_queue, "!I-4A@")
 
         elif event == "Set Charge Current to 8A":
-            send_message_to_write_queue(bms_hv_settings_queue, "!I-8A@")
+            send_message_to_write_queue(bms_hv_write_queue, "!I-8A@")
 
         elif event == "Set Charge Current to 12A":
-            send_message_to_write_queue(bms_hv_settings_queue, "!I-12@")
+            send_message_to_write_queue(bms_hv_write_queue, "!I-12@")
+        else:
+            send_message_to_write_queue(bms_hv_write_queue, "!C-CC@")
 
-        if not bms_hv_data_queue.empty():
-            bms_hv_data_json = bms_hv_data_queue.get()
+        if not bms_hv_read_queue.empty():
+            bms_hv_data_json = bms_hv_read_queue.get()
             try:
                 bms_hv_data = json.loads(
                     bms_hv_data_json, object_hook=lambda d: SimpleNamespace(**d)
