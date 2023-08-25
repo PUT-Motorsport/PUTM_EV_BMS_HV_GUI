@@ -13,13 +13,13 @@ from colorama import Fore, Style
 import numpy as np
 
 sg.theme("Material2")
-sg.set_options(font=("Helvetica", 13))
+sg.set_options(font=("Helvetica", 11))
 
 IMAGE_PATH = "putm_logo.png"
 
 SERIAL_DATA_IN_FREQ_SEC = 0.3
 
-STANDARD_TEXT_WIDTH = 8
+STANDARD_TEXT_WIDTH = 9
 
 CELL_VOLTAGE_TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
@@ -32,6 +32,8 @@ ERROR_TABLE_ROWS = 1
 
 SOC_TABLE_COLUMNS = 4
 SOC_TABLE_ROWS = 1
+
+FLOAT_PRECISION = 4
 
 KEY_CONNECTION_STATUS = "-CONNECTION-STATUS-"
 KEY_TIMESTAMP = "-TIMESTAMP-"
@@ -72,50 +74,37 @@ class BmsHvData:
 
 
 basic_info = [
-    [sg.Text("Connection Status: "), sg.Text("-",size = (12, 1), key=KEY_CONNECTION_STATUS)],
+    [
+        sg.Text("Connection Status: "),
+        sg.Text("-", size=(12, 1), key=KEY_CONNECTION_STATUS, justification="l"),
+    ],
     [
         sg.Text("Timestamp:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_TIMESTAMP, justification="c"
-        ),
+        sg.Text("-", auto_size_text=True, key=KEY_TIMESTAMP),
         sg.Text("s"),
     ],
     [
         sg.Text("Current:"),
-        sg.Text("-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CURRENT, justification="c"),
+        sg.Text("-", auto_size_text=True, key=KEY_CURRENT),
         sg.Text("A"),
     ],
     [
         sg.Text("Acc Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_ACC_VOLTAGE, justification="c"
-        ),
+        sg.Text("-", auto_size_text=True, key=KEY_ACC_VOLTAGE),
         sg.Text("V"),
     ],
     [
         sg.Text("Car Voltage:"),
-        sg.Text(
-            "-", size=(STANDARD_TEXT_WIDTH, 1), key=KEY_CAR_VOLTAGE, justification="c"
-        ),
+        sg.Text("-", auto_size_text=True, key=KEY_CAR_VOLTAGE),
         sg.Text("V"),
     ],
     [
         sg.Text("Charging Status:"),
-        sg.Text(
-            "-",
-            size=(STANDARD_TEXT_WIDTH, 1),
-            key=KEY_CHARGING_STATUS,
-            justification="c",
-        ),
+        sg.Text("-", auto_size_text=True, key=KEY_CHARGING_STATUS),
     ],
     [
         sg.Text("Balance Status:"),
-        sg.Text(
-            "-",
-            size=(STANDARD_TEXT_WIDTH, 1),
-            key=KEY_BALANCE_STATUS,
-            justification="c",
-        ),
+        sg.Text("-", auto_size_text=True, key=KEY_BALANCE_STATUS),
     ],
 ]
 
@@ -388,7 +377,9 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                     connected_event.set()
                     break
                 except serial.serialutil.SerialException:
-                    print_error(f"{serial_task_prefix} Failed to reopen serial port: {port}")
+                    print_error(
+                        f"{serial_task_prefix} Failed to reopen serial port: {port}"
+                    )
                     time.sleep(1)
                     continue
 
@@ -478,35 +469,41 @@ def main():
 
             # BASIC INFO
             window[KEY_MAX_TEMPERATURE].update(
-                float_to_string_with_precision(max(bms_hv_data.temperature), 3)
+                float_to_string_with_precision(
+                    max(bms_hv_data.temperature), FLOAT_PRECISION
+                )
             )
             window[KEY_CURRENT].update(
-                float_to_string_with_precision(bms_hv_data.current, 3)
+                float_to_string_with_precision(bms_hv_data.current, FLOAT_PRECISION)
             )
             window[KEY_ACC_VOLTAGE].update(
-                float_to_string_with_precision(bms_hv_data.acc_voltage, 3)
+                float_to_string_with_precision(bms_hv_data.acc_voltage, FLOAT_PRECISION)
             )
             window[KEY_CAR_VOLTAGE].update(
-                float_to_string_with_precision(bms_hv_data.car_voltage, 3)
+                float_to_string_with_precision(bms_hv_data.car_voltage, FLOAT_PRECISION)
             )
-            window[KEY_CHARGING_STATUS].update(
-                "On" if bms_hv_data.charging else "Off"
-            )
-            window[KEY_BALANCE_STATUS].update(
-                "On" if bms_hv_data.balance else "Off"
-            )
+            window[KEY_CHARGING_STATUS].update("On" if bms_hv_data.charging else "Off")
+            window[KEY_BALANCE_STATUS].update("On" if bms_hv_data.balance else "Off")
 
             # CELL VOLTAGE TABLE
             window[KEY_CELL_VOLTAGE].update(
                 values=to_matrix(
                     [
-                        [mark_cell_if_discharge(float_to_string_with_precision(v, 3), bms_hv_data.discharge[i]) for i, v in enumerate(bms_hv_data.cell_voltage)]
+                        [
+                            mark_cell_if_discharge(
+                                float_to_string_with_precision(v, FLOAT_PRECISION),
+                                bms_hv_data.discharge[i],
+                            )
+                            for i, v in enumerate(bms_hv_data.cell_voltage)
+                        ]
                     ],
                     CELL_VOLTAGE_TABLE_COLUMNS,
                 ).tolist()
             )
             window[KEY_CELL_MAX_VOLTAGE].update(
-                float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
+                float_to_string_with_precision(
+                    max(bms_hv_data.cell_voltage), FLOAT_PRECISION
+                )
             )
             max_cell_num, max_ltc_num = np.where(
                 to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
@@ -516,7 +513,9 @@ def main():
             window[KEY_CELL_MAX_VOLTAGE_CELL].update(max_cell_num[0])
 
             window[KEY_CELL_MIN_VOLTAGE].update(
-                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
+                float_to_string_with_precision(
+                    min(bms_hv_data.cell_voltage), FLOAT_PRECISION
+                )
             )
             min_cell_num, min_ltc_num = np.where(
                 to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
@@ -529,7 +528,7 @@ def main():
             window[KEY_TEMPERATURE].update(
                 values=to_matrix(
                     [
-                        float_to_string_with_precision(v, 3)
+                        float_to_string_with_precision(v, FLOAT_PRECISION)
                         for v in bms_hv_data.temperature
                     ],
                     TEMPERATURE_TABLE_COLUMNS,
@@ -541,7 +540,7 @@ def main():
                 values=to_matrix(
                     [
                         [
-                            float_to_string_with_precision(v * 100, 3)
+                            float_to_string_with_precision(v * 100, FLOAT_PRECISION)
                             for v in [
                                 min(bms_hv_data.soc),
                                 max(bms_hv_data.soc),
