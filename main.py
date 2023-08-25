@@ -6,11 +6,11 @@ import queue
 import threading
 import sys
 import time
+from statistics import median
 import PySimpleGUI as sg
 import serial
 from colorama import Fore, Style
 import numpy as np
-from statistics import median
 
 sg.theme("Material2")
 sg.set_options(font=("Helvetica", 13))
@@ -462,6 +462,7 @@ def main():
                 )
                 continue
 
+            # BASIC INFO
             window[KEY_MAX_TEMPERATURE].update(
                 float_to_string_with_precision(max(bms_hv_data.temperature), 3)
             )
@@ -475,6 +476,7 @@ def main():
                 float_to_string_with_precision(bms_hv_data.car_voltage, 3)
             )
 
+            # CELL VOLTAGE TABLE
             window[KEY_CELL_VOLTAGE].update(
                 values=to_matrix(
                     [
@@ -489,17 +491,24 @@ def main():
             window[KEY_CELL_MAX_VOLTAGE].update(
                 float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
             )
-            window[KEY_CELL_MIN_VOLTAGE].update(
-                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
+            max_cell_num, max_ltc_num = np.where(
+                to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
+                == max(bms_hv_data.cell_voltage)
             )
-            max_cell_num, max_ltc_num = np.where(to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS) == max(bms_hv_data.cell_voltage))
             window[KEY_CELL_MAX_VOLTAGE_LTC].update(max_ltc_num[0])
             window[KEY_CELL_MAX_VOLTAGE_CELL].update(max_cell_num[0])
 
-            min_cell_num, min_ltc_num = np.where(to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS) == min(bms_hv_data.cell_voltage))
+            window[KEY_CELL_MIN_VOLTAGE].update(
+                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
+            )
+            min_cell_num, min_ltc_num = np.where(
+                to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
+                == min(bms_hv_data.cell_voltage)
+            )
             window[KEY_CELL_MIN_VOLTAGE_LTC].update(min_ltc_num[0])
             window[KEY_CELL_MIN_VOLTAGE_CELL].update(min_cell_num[0])
 
+            # TEMPERATURE TABLE
             window[KEY_TEMPERATURE].update(
                 values=to_matrix(
                     [
@@ -510,6 +519,7 @@ def main():
                 ).tolist()
             )
 
+            # SOC TABLE
             window[KEY_SOC].update(
                 values=to_matrix(
                     [
