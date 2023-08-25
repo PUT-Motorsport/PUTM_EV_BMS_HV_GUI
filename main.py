@@ -121,7 +121,7 @@ cell_voltage = [
                 ["-" for i in range(CELL_VOLTAGE_TABLE_COLUMNS)]
                 for j in range(CELL_VOLTAGE_TABLE_ROWS)
             ],
-            headings=[f"LTC {j+1}" for j in range(CELL_VOLTAGE_TABLE_COLUMNS)],
+            headings=[f"LTC {j}" for j in range(CELL_VOLTAGE_TABLE_COLUMNS)],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=True,
             auto_size_columns=False,
@@ -304,7 +304,7 @@ def print_warning(msg):
 def to_matrix(l, columns):
     """Converts a list to a matrix with the specified number of columns"""
     matrix = np.reshape(np.array(l), (columns, -1)).T
-    return matrix.tolist()
+    return matrix
 
 
 def send_message_to_write_queue(write_queue, message):
@@ -462,12 +462,6 @@ def main():
                 )
                 continue
 
-            window[KEY_CELL_MAX_VOLTAGE].update(
-                float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
-            )
-            window[KEY_CELL_MIN_VOLTAGE].update(
-                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
-            )
             window[KEY_MAX_TEMPERATURE].update(
                 float_to_string_with_precision(max(bms_hv_data.temperature), 3)
             )
@@ -490,8 +484,21 @@ def main():
                         for v in bms_hv_data.cell_voltage
                     ],
                     CELL_VOLTAGE_TABLE_COLUMNS,
-                )
+                ).tolist()
             )
+            window[KEY_CELL_MAX_VOLTAGE].update(
+                float_to_string_with_precision(max(bms_hv_data.cell_voltage), 3)
+            )
+            window[KEY_CELL_MIN_VOLTAGE].update(
+                float_to_string_with_precision(min(bms_hv_data.cell_voltage), 3)
+            )
+            max_cell_num, max_ltc_num = np.where(to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS) == max(bms_hv_data.cell_voltage))
+            window[KEY_CELL_MAX_VOLTAGE_LTC].update(max_ltc_num[0])
+            window[KEY_CELL_MAX_VOLTAGE_CELL].update(max_cell_num[0])
+
+            min_cell_num, min_ltc_num = np.where(to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS) == min(bms_hv_data.cell_voltage))
+            window[KEY_CELL_MIN_VOLTAGE_LTC].update(min_ltc_num[0])
+            window[KEY_CELL_MIN_VOLTAGE_CELL].update(min_cell_num[0])
 
             window[KEY_TEMPERATURE].update(
                 values=to_matrix(
@@ -500,7 +507,7 @@ def main():
                         for v in bms_hv_data.temperature
                     ],
                     TEMPERATURE_TABLE_COLUMNS,
-                )
+                ).tolist()
             )
 
             window[KEY_SOC].update(
@@ -517,7 +524,7 @@ def main():
                         ]
                     ],
                     SOC_TABLE_COLUMNS,
-                )
+                ).tolist()
             )
 
     main_exit_event.set()
