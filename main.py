@@ -53,7 +53,7 @@ KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
 KEY_TEMPERATURE = "-TEMPERATURE-"
 KEY_ERROR = "-CELL-ERRORS-"
 KEY_CHARGING_STATUS = "-CHARGING-STATUS-"
-KEY_BALANCING_STATUS = "-BALANCING-STATUS-"
+KEY_BALANCE_STATUS = "-BALANCE-STATUS-"
 
 
 @dataclass
@@ -66,6 +66,9 @@ class BmsHvData:
     soc: list[float]
     cell_voltage: list[float]
     temperature: list[float]
+    discharge: list[int]
+    balance: int
+    charging: int
 
 
 basic_info = [
@@ -106,11 +109,11 @@ basic_info = [
         ),
     ],
     [
-        sg.Text("Balancing Status:"),
+        sg.Text("Balance Status:"),
         sg.Text(
             "-",
             size=(STANDARD_TEXT_WIDTH, 1),
-            key=KEY_BALANCING_STATUS,
+            key=KEY_BALANCE_STATUS,
             justification="c",
         ),
     ],
@@ -283,9 +286,9 @@ def float_to_string_with_precision(value, precision):
     return f"{value:.{precision}f}"
 
 
-def mark_cell_if_balancing(value, is_balancing):
-    """Marks a cell if it is balancing"""
-    return (f"|{value}|") if is_balancing else value
+def mark_cell_if_discharge(value, is_discharging):
+    """Marks a cell if it is discharging"""
+    return (f"#{value}#") if is_discharging else value
 
 
 def print_ok(msg):
@@ -486,15 +489,18 @@ def main():
             window[KEY_CAR_VOLTAGE].update(
                 float_to_string_with_precision(bms_hv_data.car_voltage, 3)
             )
+            window[KEY_CHARGING_STATUS].update(
+                "On" if bms_hv_data.charging else "Off"
+            )
+            window[KEY_BALANCE_STATUS].update(
+                "On" if bms_hv_data.balance else "Off"
+            )
 
             # CELL VOLTAGE TABLE
             window[KEY_CELL_VOLTAGE].update(
                 values=to_matrix(
                     [
-                        mark_cell_if_balancing(
-                            float_to_string_with_precision(v, 3), True
-                        )
-                        for v in bms_hv_data.cell_voltage
+                        [mark_cell_if_discharge(float_to_string_with_precision(v, 3), bms_hv_data.discharge[i]) for i, v in enumerate(bms_hv_data.cell_voltage)]
                     ],
                     CELL_VOLTAGE_TABLE_COLUMNS,
                 ).tolist()
