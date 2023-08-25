@@ -192,7 +192,7 @@ error = [
                 "Under Temperature",
                 "Over Temperature",
                 "Over Current",
-                "Current Sensor Status",
+                "Current Sensor",
             ],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=False,
@@ -202,7 +202,7 @@ error = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_ERROR,
-            def_col_width=17,
+            def_col_width=14,
         )
     ]
 ]
@@ -247,30 +247,30 @@ charge_control = [
 
 exit_button = [[sg.Button("Exit")]]
 
-image = [sg.Image(IMAGE_PATH)]
+image = sg.Image(IMAGE_PATH)
 
-frame_basic_info = [sg.Frame("Basic Info", basic_info)]
-frame_charge_control = [sg.Frame("Charge control", charge_control)]
-frame_exit_button = [sg.Frame("Exit", exit_button)]
+frame_basic_info = sg.Frame("Basic Info", basic_info)
+frame_charge_control = sg.Frame("Charge control", charge_control)
+frame_exit_button = sg.Frame("Exit", exit_button)
 
-frame_cell_voltage = [sg.Frame("Cell Voltages", cell_voltage)]
-frame_temperature = [sg.Frame("Temperatures", temperature)]
-frame_error = [sg.Frame("Errors", error)]
-frame_soc = [sg.Frame("Soc", soc)]
+frame_cell_voltage = sg.Frame("Cell Voltages", cell_voltage)
+frame_temperature = sg.Frame("Temperatures", temperature)
+frame_error = sg.Frame("Errors", error)
+frame_soc = sg.Frame("Soc", soc)
 
 column_left = sg.Column(
-    [frame_basic_info, frame_charge_control, frame_exit_button],
+    [[frame_basic_info], [frame_charge_control], [frame_exit_button]],
     element_justification="l",
     vertical_alignment="top",
 )
 column_right = sg.Column(
-    [frame_error, frame_cell_voltage, frame_temperature, frame_soc],
+    [[frame_cell_voltage], [frame_temperature], [frame_error, frame_soc]],
     element_justification="l",
     vertical_alignment="top",
 )
 
 layout = [
-    image,
+    [image],
     [column_left, sg.VerticalSeparator(pad=None), column_right],
 ]
 window = sg.Window("BMS HV Utility", layout, element_justification="c")
