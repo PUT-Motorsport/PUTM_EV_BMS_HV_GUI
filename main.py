@@ -69,7 +69,7 @@ class BmsHvData:
 
 
 basic_info = [
-    [sg.Text("Connection Status: "), sg.Text("-", key=KEY_CONNECTION_STATUS)],
+    [sg.Text("Connection Status: "), sg.Text("-",size = (12, 1), key=KEY_CONNECTION_STATUS)],
     [
         sg.Text("Timestamp:"),
         sg.Text(
@@ -319,8 +319,11 @@ def send_message_to_write_queue(write_queue, message):
 
 def serial_task(port, read_queue, write_queue, connected_event, exit_event):
     """This function is used to read data from and to write data to the serial port"""
+    serial_task_prefix = "SERIAL TASK: "
     write_prefix = "WRITE: "
     read_prefix = "READ: "
+    keep_alive_prefix = "KEEP_ALIVE: "
+    keep_alive_message = "!C-CC@"
 
     ser = serial.Serial()
     ser.port = port
@@ -333,9 +336,9 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
         try:
             ser.open()
             connected_event.set()
-            print_ok("Serial port opened")
+            print_ok(f"{serial_task_prefix} Serial port: {port} opened")
         except serial.serialutil.SerialException:
-            print_error("Failed to open serial port")
+            print_error(f"{serial_task_prefix} Serial port: {port} not available")
             time.sleep(1)
             continue
 
@@ -344,6 +347,12 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
             ser.close()
             return
         try:
+            print_ok("-------------------------------------------------------")
+
+            # Keep alive
+            ser.write(keep_alive_message.encode("utf-8"))
+            print_ok(f"{keep_alive_prefix} Keep alive message sent to the serial port")
+
             # Write data
             try:
                 data = write_queue.get_nowait()
@@ -363,11 +372,11 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                 read_queue.put_nowait(line)
                 print_ok(f"{read_prefix} New data received from the serial port")
             except queue.Full:
-                print_warning("Read queue is full")
+                print_warning(f"{read_prefix} Read queue is full")
 
         except serial.serialutil.SerialException:
             connected_event.clear()
-            print_error("Serial port was closed")
+            print_error(f"{serial_task_prefix} Serial port: {port} disconnected")
             while True:
                 if exit_event.is_set():
                     return
@@ -376,7 +385,7 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                     connected_event.set()
                     break
                 except serial.serialutil.SerialException:
-                    print_error("Failed to reopen serial port")
+                    print_error(f"{serial_task_prefix} Failed to reopen serial port: {port}")
                     time.sleep(1)
                     continue
 
@@ -445,8 +454,6 @@ def main():
 
         elif event == "Set Charge Current to 12A":
             send_message_to_write_queue(bms_hv_write_queue, "!I-12@")
-        else:
-            send_message_to_write_queue(bms_hv_write_queue, "!C-CC@")
 
         if not bms_hv_read_queue.empty():
             bms_hv_data_json = bms_hv_read_queue.get()
