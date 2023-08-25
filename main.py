@@ -77,6 +77,7 @@ class BmsHvData:
     over_temperature: list[int]
     over_current: list[int]
     current_sensor_disconnected: list[int]
+    timestamp: float
 
 
 basic_info = [
@@ -474,6 +475,9 @@ def main():
                 continue
 
             # BASIC INFO
+            window[KEY_TIMESTAMP].update(
+                float_to_string_with_precision((bms_hv_data.timestamp / 1000), 3)
+            )
             window[KEY_MAX_TEMPERATURE].update(
                 float_to_string_with_precision(
                     max(bms_hv_data.temperature), FLOAT_PRECISION
