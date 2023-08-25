@@ -17,6 +17,8 @@ sg.set_options(font=("Helvetica", 13))
 
 IMAGE_PATH = "putm_logo.png"
 
+SERIAL_DATA_IN_FREQ_SEC = 0.3
+
 STANDARD_TEXT_WIDTH = 8
 
 CELL_VOLTAGE_TABLE_COLUMNS = 15
@@ -323,7 +325,7 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
     ser = serial.Serial()
     ser.port = port
     # this value has to be bigger than frequency of sending data from BMS HV
-    ser.timeout = 1.2
+    ser.timeout = SERIAL_DATA_IN_FREQ_SEC + 0.2
 
     while not ser.is_open:
         if exit_event.is_set():
