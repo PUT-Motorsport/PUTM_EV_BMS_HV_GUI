@@ -71,6 +71,12 @@ class BmsHvData:
     discharge: list[int]
     balance: int
     charging: int
+    under_voltage: list[int]
+    over_voltage: list[int]
+    under_temperature: list[int]
+    over_temperature: list[int]
+    over_current: list[int]
+    current_sensor_disconnected: list[int]
 
 
 basic_info = [
@@ -551,6 +557,23 @@ def main():
                     ],
                     SOC_TABLE_COLUMNS,
                 ).tolist()
+            )
+
+            # ERROR TABLE
+            window[KEY_ERROR].update(
+                values=[
+                    [
+                        e[1] if e[0] else "-"
+                        for e in [
+                            bms_hv_data.under_voltage,
+                            bms_hv_data.over_voltage,
+                            bms_hv_data.under_temperature,
+                            bms_hv_data.over_temperature,
+                            bms_hv_data.over_current,
+                            bms_hv_data.current_sensor_disconnected,
+                        ]
+                    ]
+                ]
             )
 
     main_exit_event.set()
