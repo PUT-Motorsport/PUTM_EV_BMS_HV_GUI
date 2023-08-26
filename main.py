@@ -17,7 +17,7 @@ sg.set_options(font=("Helvetica", 11))
 
 IMAGE_PATH = "putm_logo.png"
 
-SERIAL_DATA_IN_FREQ_SEC = 0.3
+SERIAL_DATA_IN_FREQ_SEC = 0.250
 
 STANDARD_TEXT_WIDTH = 9
 
@@ -419,7 +419,7 @@ def main():
     serial_task_thread.start()
 
     while True:
-        event, values = window.read(timeout=1000)
+        event, values = window.read(timeout=500)
 
         if serial_task_connected_event.is_set():
             window[KEY_CONNECTION_STATUS].update("Connected")
