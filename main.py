@@ -27,8 +27,8 @@ CELL_VOLTAGE_TABLE_ROWS = 9
 TEMPERATURE_TABLE_COLUMNS = 15
 TEMPERATURE_TABLE_ROWS = 3
 
-ERROR_TABLE_COLUMNS = 6
-ERROR_TABLE_ROWS = 1
+ERROR_TABLE_COLUMNS = 2
+ERROR_TABLE_ROWS = 6
 
 SOC_TABLE_COLUMNS = 4
 SOC_TABLE_ROWS = 1
@@ -187,18 +187,11 @@ error = [
                 ["-" for i in range(ERROR_TABLE_COLUMNS)]
                 for j in range(ERROR_TABLE_ROWS)
             ],
-            headings=[
-                "Under Voltage",
-                "Over Voltage",
-                "Under Temperature",
-                "Over Temperature",
-                "Over Current",
-                "Current Sensor",
-            ],
+            headings=["Error", "Value"],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=False,
             auto_size_columns=False,
-            justification="c",
+            justification="r",
             num_rows=ERROR_TABLE_ROWS,
             enable_events=False,
             hide_vertical_scroll=True,
@@ -265,7 +258,7 @@ column_left = sg.Column(
     vertical_alignment="top",
 )
 column_right = sg.Column(
-    [[frame_cell_voltage], [frame_temperature], [frame_error, frame_soc]],
+    [[frame_cell_voltage], [frame_temperature], [frame_soc], [frame_error]],
     element_justification="l",
     vertical_alignment="top",
 )
@@ -563,22 +556,44 @@ def main():
                 ).tolist()
             )
 
-            # ERROR TABLE
-            window[KEY_ERROR].update(
-                values=[
+            errors = [
+                ([e[0], e[2]] if e[1] == 1 else ["-", "-"])
+                for e in [
                     [
-                        e[1] if e[0] else "-"
-                        for e in [
-                            bms_hv_data.under_voltage,
-                            bms_hv_data.over_voltage,
-                            bms_hv_data.under_temperature,
-                            bms_hv_data.over_temperature,
-                            bms_hv_data.over_current,
-                            bms_hv_data.current_sensor_disconnected,
-                        ]
-                    ]
+                        "Under Voltage",
+                        bms_hv_data.under_voltage[0],
+                        bms_hv_data.under_voltage[1],
+                    ],
+                    [
+                        "Over Voltage",
+                        bms_hv_data.over_voltage[0],
+                        bms_hv_data.over_voltage[1],
+                    ],
+                    [
+                        "Under Temperature",
+                        bms_hv_data.under_temperature[0],
+                        bms_hv_data.under_temperature[1],
+                    ],
+                    [
+                        "Over Temperature",
+                        bms_hv_data.over_temperature[0],
+                        bms_hv_data.over_temperature[1],
+                    ],
+                    [
+                        "Over Current",
+                        bms_hv_data.over_current[0],
+                        bms_hv_data.over_current[1],
+                    ],
+                    [
+                        "Current Sensor",
+                        bms_hv_data.current_sensor_disconnected[0],
+                        "Disconnected",
+                    ],
                 ]
-            )
+            ]
+
+            # ERROR TABLE
+            window[KEY_ERROR].update(values=errors)
 
     main_exit_event.set()
     serial_task_thread.join()
