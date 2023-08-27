@@ -95,16 +95,16 @@ basic_info = [
         sg.Text("-", auto_size_text=True, key=KEY_CURRENT),
         sg.Text("A"),
     ],
-    [
-        sg.Text("Acc Voltage:"),
-        sg.Text("-", auto_size_text=True, key=KEY_ACC_VOLTAGE),
-        sg.Text("V"),
-    ],
-    [
-        sg.Text("Car Voltage:"),
-        sg.Text("-", auto_size_text=True, key=KEY_CAR_VOLTAGE),
-        sg.Text("V"),
-    ],
+    # [
+    #     sg.Text("Acc Voltage:"),
+    #     sg.Text("-", auto_size_text=True, key=KEY_ACC_VOLTAGE),
+    #     sg.Text("V"),
+    # ],
+    # [
+    #     sg.Text("Car Voltage:"),
+    #     sg.Text("-", auto_size_text=True, key=KEY_CAR_VOLTAGE),
+    #     sg.Text("V"),
+    # ],
     [
         sg.Text("Charging Status:"),
         sg.Text("-", auto_size_text=True, key=KEY_CHARGING_STATUS),
@@ -479,12 +479,12 @@ def main():
             window[KEY_CURRENT].update(
                 float_to_string_with_precision(bms_hv_data.current, FLOAT_PRECISION)
             )
-            window[KEY_ACC_VOLTAGE].update(
-                float_to_string_with_precision(bms_hv_data.acc_voltage, FLOAT_PRECISION)
-            )
-            window[KEY_CAR_VOLTAGE].update(
-                float_to_string_with_precision(bms_hv_data.car_voltage, FLOAT_PRECISION)
-            )
+            # window[KEY_ACC_VOLTAGE].update(
+            #     float_to_string_with_precision(bms_hv_data.acc_voltage, FLOAT_PRECISION)
+            # )
+            # window[KEY_CAR_VOLTAGE].update(
+            #     float_to_string_with_precision(bms_hv_data.car_voltage, FLOAT_PRECISION)
+            # )
             window[KEY_CHARGING_STATUS].update("On" if bms_hv_data.charging else "Off")
             window[KEY_BALANCE_STATUS].update("On" if bms_hv_data.balance else "Off")
 
