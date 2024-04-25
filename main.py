@@ -388,7 +388,7 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
 def main():
     """Main function"""
     if len(sys.argv) != 2:
-        print_error("Usage: python3 pyserial_tests.py <serial_port>")
+        print_error("Usage: python main.py <serial_port>")
         sys.exit(1)
 
     print_ok("Starting...")
