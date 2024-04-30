@@ -387,9 +387,9 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
 
 def main():
     """Main function"""
-    if len(sys.argv) != 2:
-        print_error("Usage: python main.py <serial_port>")
-        sys.exit(1)
+ #   if len(sys.argv) != 2:
+ #       print_error("Usage: python main.py <serial_port>")
+ #       sys.exit(1)
 
     print_ok("Starting...")
 
@@ -402,7 +402,7 @@ def main():
     serial_task_thread = threading.Thread(
         target=serial_task,
         args=(
-            sys.argv[1],
+            "COM8",
             bms_hv_read_queue,
             bms_hv_write_queue,
             serial_task_connected_event,
