@@ -19,13 +19,13 @@ IMAGE_PATH = "putm_logo.png"
 
 SERIAL_DATA_IN_FREQ_SEC = 0.250
 
-STANDARD_TEXT_WIDTH = 9
+STANDARD_TEXT_WIDTH = 6
 
 CELL_VOLTAGE_TABLE_COLUMNS = 14
 CELL_VOLTAGE_TABLE_ROWS = 10
 
 TEMPERATURE_TABLE_COLUMNS = 14
-TEMPERATURE_TABLE_ROWS = 5
+TEMPERATURE_TABLE_ROWS = 4
 
 ERROR_TABLE_COLUMNS = 2
 ERROR_TABLE_ROWS = 6
@@ -33,8 +33,7 @@ ERROR_TABLE_ROWS = 6
 SOC_TABLE_COLUMNS = 4
 SOC_TABLE_ROWS = 1
 
-FLOAT_PRECISION = 4
-
+FLOAT_PRECISION = 3
 KEY_CONNECTION_STATUS = "-CONNECTION-STATUS-"
 KEY_TIMESTAMP = "-TIMESTAMP-"
 
@@ -196,7 +195,7 @@ error = [
             enable_events=False,
             hide_vertical_scroll=True,
             key=KEY_ERROR,
-            def_col_width=14,
+            def_col_width=14, 
         )
     ]
 ]
@@ -374,6 +373,8 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                 if exit_event.is_set():
                     return
                 try:
+                    ser.close()
+                    ser = serial.Serial(port = port, timeout = SERIAL_DATA_IN_FREQ_SEC + 0.2)
                     ser.open()
                     connected_event.set()
                     break
@@ -381,7 +382,9 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                     print_error(
                         f"{serial_task_prefix} Failed to reopen serial port: {port}"
                     )
-                    time.sleep(1)
+                    ser.close()
+                    time.sleep(100)
+                    ser.open()
                     continue
 
 
