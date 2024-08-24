@@ -227,6 +227,7 @@ soc = [
 
 
 charge_control = [
+    [sg.Button("Test Communication")],
     [sg.Button("Full Battery Soc")],
     [sg.Button("Start Charging")],
     [sg.Button("Stop Charging")],
@@ -425,7 +426,10 @@ def main():
 
         if event == sg.WINDOW_CLOSED or event == "Exit":
             break
-        
+
+        elif event == "Test Communication":
+            send_message_to_write_queue(bms_hv_write_queue, "!C-CT@")
+
         elif event == "Full Battery Soc":
             send_message_to_write_queue(bms_hv_write_queue, "!B-FC@")
 
