@@ -17,7 +17,7 @@ sg.set_options(font=("Helvetica", 11))
 
 IMAGE_PATH = "putm_logo.png"
 
-SERIAL_DATA_IN_FREQ_SEC = 0.250
+SERIAL_DATA_IN_FREQ_SEC = 1
 
 STANDARD_TEXT_WIDTH = 6
 
@@ -425,7 +425,10 @@ def main():
 
         if event == sg.WINDOW_CLOSED or event == "Exit":
             break
-        
+
+        elif event == "Test Communication":
+            send_message_to_write_queue(bms_hv_write_queue, "!C-CT@")
+
         elif event == "Full Battery Soc":
             send_message_to_write_queue(bms_hv_write_queue, "!B-FC@")
 
