@@ -17,7 +17,7 @@ sg.set_options(font=("Helvetica", 11))
 
 IMAGE_PATH = "putm_logo.png"
 
-SERIAL_DATA_IN_FREQ_SEC = 0.250
+SERIAL_DATA_IN_FREQ_SEC = 1
 
 STANDARD_TEXT_WIDTH = 6
 
