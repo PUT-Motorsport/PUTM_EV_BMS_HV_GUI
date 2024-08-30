@@ -207,10 +207,10 @@ soc = [
                 ["-" for i in range(SOC_TABLE_COLUMNS)] for j in range(SOC_TABLE_ROWS)
             ],
             headings=[
-                "Min",
-                "Max",
+                #"Min",
+                #"Max",
                 "Avg",
-                "Median",
+                #"Median",
             ],
             select_mode=sg.TABLE_SELECT_MODE_NONE,
             display_row_numbers=False,
@@ -555,9 +555,9 @@ def main():
                         [
                             float_to_string_with_precision(v * 100, FLOAT_PRECISION)
                             for v in [
+                                sum(bms_hv_data.soc) / len(bms_hv_data.soc),
                                 min(bms_hv_data.soc),
                                 max(bms_hv_data.soc),
-                                sum(bms_hv_data.soc) / len(bms_hv_data.soc),
                                 median(bms_hv_data.soc),
                             ]
                         ]
