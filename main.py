@@ -1,25 +1,37 @@
-""" This is the main file for the BMS HV Utility. It is used to display the data from the BMS HV and to change its settings"""
 import json
-from types import SimpleNamespace
-from dataclasses import dataclass
-import queue
-import threading
 import sys
 import time
+import queue
+import threading
+from types import SimpleNamespace
 from statistics import median
-import PySimpleGUI as sg
+from dataclasses import dataclass
+
+import numpy as np
 import serial
 from colorama import Fore, Style
-import numpy as np
 
-sg.theme("Material2")
-sg.set_options(font=("Helvetica", 11))
+from PyQt5.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QGroupBox,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QHeaderView,
+)
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import QTimer, Qt
+
 
 IMAGE_PATH = "putm_logo.png"
 
 SERIAL_DATA_IN_FREQ_SEC = 0.250
-
-STANDARD_TEXT_WIDTH = 9
 
 CELL_VOLTAGE_TABLE_COLUMNS = 15
 CELL_VOLTAGE_TABLE_ROWS = 9
@@ -35,33 +47,8 @@ SOC_TABLE_ROWS = 1
 
 FLOAT_PRECISION = 4
 
-KEY_CONNECTION_STATUS = "-CONNECTION-STATUS-"
-KEY_TIMESTAMP = "-TIMESTAMP-"
-
-KEY_CELL_MAX_VOLTAGE = "-MAX-VOLTAGE-"
-KEY_CELL_MAX_VOLTAGE_LTC = "-MAX-VOLTAGE-LTC-"
-KEY_CELL_MAX_VOLTAGE_CELL = "-MAX-VOLTAGE-CELL-"
-
-KEY_CELL_MIN_VOLTAGE = "-MIN-VOLTAGE-"
-KEY_CELL_MIN_VOLTAGE_LTC = "-MIN-VOLTAGE-LTC-"
-KEY_CELL_MIN_VOLTAGE_CELL = "-MIN-VOLTAGE-CELL-"
-
-KEY_MAX_TEMPERATURE = "-MAX-TEMPERATURE-"
-KEY_CURRENT = "-CURRENT-"
-KEY_ACC_VOLTAGE = "-ACC-VOLTAGE-"
-KEY_CAR_VOLTAGE = "-CAR-VOLTAGE-"
-KEY_SOC = "-SOC-"
-KEY_CELL_VOLTAGE = "-CELL-VOLTAGE-"
-KEY_TEMPERATURE = "-TEMPERATURE-"
-KEY_ERROR = "-CELL-ERRORS-"
-KEY_CHARGING_STATUS = "-CHARGING-STATUS-"
-KEY_BALANCE_STATUS = "-BALANCE-STATUS-"
-
-
 @dataclass
 class BmsHvData:
-    """Dataclass for BMS HV data"""
-
     current: float
     acc_voltage: float
     car_voltage: float
@@ -80,230 +67,26 @@ class BmsHvData:
     timestamp: float
 
 
-basic_info = [
-    [
-        sg.Text("Connection Status: "),
-        sg.Text("-", size=(12, 1), key=KEY_CONNECTION_STATUS, justification="l"),
-    ],
-    [
-        sg.Text("Timestamp:"),
-        sg.Text("-", auto_size_text=True, key=KEY_TIMESTAMP),
-        sg.Text("s"),
-    ],
-    [
-        sg.Text("Current:"),
-        sg.Text("-", auto_size_text=True, key=KEY_CURRENT),
-        sg.Text("A"),
-    ],
-    # [
-    #     sg.Text("Acc Voltage:"),
-    #     sg.Text("-", auto_size_text=True, key=KEY_ACC_VOLTAGE),
-    #     sg.Text("V"),
-    # ],
-    # [
-    #     sg.Text("Car Voltage:"),
-    #     sg.Text("-", auto_size_text=True, key=KEY_CAR_VOLTAGE),
-    #     sg.Text("V"),
-    # ],
-    [
-        sg.Text("Charging Status:"),
-        sg.Text("-", auto_size_text=True, key=KEY_CHARGING_STATUS),
-    ],
-    [
-        sg.Text("Balance Status:"),
-        sg.Text("-", auto_size_text=True, key=KEY_BALANCE_STATUS),
-    ],
-]
-
-cell_voltage = [
-    [
-        sg.Table(
-            values=[
-                ["-" for i in range(CELL_VOLTAGE_TABLE_COLUMNS)]
-                for j in range(CELL_VOLTAGE_TABLE_ROWS)
-            ],
-            headings=[f"LTC {j}" for j in range(CELL_VOLTAGE_TABLE_COLUMNS)],
-            select_mode=sg.TABLE_SELECT_MODE_NONE,
-            display_row_numbers=True,
-            auto_size_columns=False,
-            justification="center",
-            num_rows=CELL_VOLTAGE_TABLE_ROWS,
-            enable_events=False,
-            hide_vertical_scroll=True,
-            key=KEY_CELL_VOLTAGE,
-            def_col_width=STANDARD_TEXT_WIDTH,
-        )
-    ],
-    [
-        sg.Text("Max Voltage:"),
-        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE, justification="l"),
-        sg.Text("V"),
-        sg.Text("LTC:"),
-        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE_LTC, justification="l"),
-        sg.Text("Cell:"),
-        sg.Text("-", key=KEY_CELL_MAX_VOLTAGE_CELL, justification="l"),
-    ],
-    [
-        sg.Text("Min Voltage:"),
-        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE, justification="l"),
-        sg.Text("V"),
-        sg.Text("LTC:"),
-        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE_LTC, justification="l"),
-        sg.Text("Cell:"),
-        sg.Text("-", key=KEY_CELL_MIN_VOLTAGE_CELL, justification="l"),
-    ],
-]
-
-temperature = [
-    [
-        sg.Table(
-            values=[
-                ["-" for i in range(TEMPERATURE_TABLE_COLUMNS)]
-                for j in range(TEMPERATURE_TABLE_ROWS)
-            ],
-            headings=[f"Col {j+1}" for j in range(TEMPERATURE_TABLE_COLUMNS)],
-            select_mode=sg.TABLE_SELECT_MODE_NONE,
-            display_row_numbers=True,
-            auto_size_columns=False,
-            justification="center",
-            num_rows=TEMPERATURE_TABLE_ROWS,
-            enable_events=False,
-            hide_vertical_scroll=True,
-            key=KEY_TEMPERATURE,
-            def_col_width=STANDARD_TEXT_WIDTH,
-        )
-    ],
-    [
-        sg.Text("Max Temp:"),
-        sg.Text("-", key=KEY_MAX_TEMPERATURE, justification="L"),
-        sg.Text("°C"),
-    ],
-]
-
-error = [
-    [
-        sg.Table(
-            values=[
-                ["-" for i in range(ERROR_TABLE_COLUMNS)]
-                for j in range(ERROR_TABLE_ROWS)
-            ],
-            headings=["Error", "Value"],
-            select_mode=sg.TABLE_SELECT_MODE_NONE,
-            display_row_numbers=False,
-            auto_size_columns=False,
-            justification="r",
-            num_rows=ERROR_TABLE_ROWS,
-            enable_events=False,
-            hide_vertical_scroll=True,
-            key=KEY_ERROR,
-            def_col_width=14,
-        )
-    ]
-]
-
-soc = [
-    [
-        sg.Table(
-            values=[
-                ["-" for i in range(SOC_TABLE_COLUMNS)] for j in range(SOC_TABLE_ROWS)
-            ],
-            headings=[
-                "Min",
-                "Max",
-                "Avg",
-                "Median",
-            ],
-            select_mode=sg.TABLE_SELECT_MODE_NONE,
-            display_row_numbers=False,
-            auto_size_columns=False,
-            justification="c",
-            num_rows=SOC_TABLE_ROWS,
-            enable_events=False,
-            hide_vertical_scroll=True,
-            key=KEY_SOC,
-            def_col_width=STANDARD_TEXT_WIDTH,
-        )
-    ]
-]
-
-
-charge_control = [
-    [sg.Button("Full Battery Soc")],
-    [sg.Button("Start Charging")],
-    [sg.Button("Stop Charging")],
-    [sg.Button("Start Balance")],
-    [sg.Button("Stop Balance")],
-    [sg.Button("Set Charge Current to 1A")],
-    [sg.Button("Set Charge Current to 2A")],
-    [sg.Button("Set Charge Current to 4A")],
-    [sg.Button("Set Charge Current to 8A")],
-    [sg.Button("Set Charge Current to 12A")],
-]
-
-exit_button = [[sg.Button("Exit")]]
-
-image = sg.Image(IMAGE_PATH)
-
-frame_basic_info = sg.Frame("Basic Info", basic_info)
-frame_charge_control = sg.Frame("Charge control", charge_control)
-frame_exit_button = sg.Frame("Exit", exit_button)
-
-frame_cell_voltage = sg.Frame("Cell Voltages", cell_voltage)
-frame_temperature = sg.Frame("Temperatures", temperature)
-frame_error = sg.Frame("Errors", error)
-frame_soc = sg.Frame("Soc", soc)
-
-column_left = sg.Column(
-    [[frame_basic_info], [frame_charge_control], [frame_exit_button]],
-    element_justification="l",
-    vertical_alignment="top",
-)
-column_right = sg.Column(
-    [[frame_cell_voltage], [frame_temperature], [frame_soc], [frame_error]],
-    element_justification="l",
-    vertical_alignment="top",
-)
-
-layout = [
-    [image],
-    [column_left, sg.VerticalSeparator(pad=None), column_right],
-]
-window = sg.Window("BMS HV Utility", layout, element_justification="c")
-
-
 def float_to_string_with_precision(value, precision):
-    """Converts a float to a string with the specified precision"""
     return f"{value:.{precision}f}"
 
-
 def mark_cell_if_discharge(value, is_discharging):
-    """Marks a cell if it is discharging"""
-    return (f"#{value}#") if is_discharging else value
-
+    return f"#{value}#" if is_discharging else value
 
 def print_ok(msg):
-    """Prints an ok message"""
     print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
 
-
 def print_error(msg):
-    """Prints an error message"""
     print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
 
-
 def print_warning(msg):
-    """Prints a warning message"""
     print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
 
-
 def to_matrix(l, columns):
-    """Converts a list to a matrix with the specified number of columns"""
     matrix = np.reshape(np.array(l), (columns, -1)).T
     return matrix
 
-
 def send_message_to_write_queue(write_queue, message):
-    """This function is used to send a message to the write queue"""
     try:
         write_queue.put_nowait(message)
     except queue.Full:
@@ -311,7 +94,6 @@ def send_message_to_write_queue(write_queue, message):
 
 
 def serial_task(port, read_queue, write_queue, connected_event, exit_event):
-    """This function is used to read data from and to write data to the serial port"""
     serial_task_prefix = "SERIAL TASK: "
     write_prefix = "WRITE: "
     read_prefix = "READ: "
@@ -320,7 +102,6 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
 
     ser = serial.Serial()
     ser.port = port
-    # this value has to be bigger than frequency of sending data from BMS HV
     ser.timeout = SERIAL_DATA_IN_FREQ_SEC + 0.2
 
     while not ser.is_open:
@@ -341,20 +122,14 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
             return
         try:
             print_ok("-------------------------------------------------------")
-
-            # Keep alive
             ser.write(keep_alive_message.encode("utf-8"))
             print_ok(f"{keep_alive_prefix} Keep alive message sent to the serial port")
-
-            # Write data
             try:
                 data = write_queue.get_nowait()
                 ser.write(data.encode("utf-8"))
                 print_ok(f"{write_prefix} New data sent to the serial port: {data}")
             except queue.Empty:
                 print_warning(f"{write_prefix} Nothing to send to the serial port")
-
-            # Read data
             try:
                 ser.reset_input_buffer()
                 ser.readline()
@@ -366,7 +141,6 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                 print_ok(f"{read_prefix} New data received from the serial port")
             except queue.Full:
                 print_warning(f"{read_prefix} Read queue is full")
-
         except serial.serialutil.SerialException:
             connected_event.clear()
             print_error(f"{serial_task_prefix} Serial port: {port} disconnected")
@@ -378,17 +152,353 @@ def serial_task(port, read_queue, write_queue, connected_event, exit_event):
                     connected_event.set()
                     break
                 except serial.serialutil.SerialException:
-                    print_error(
-                        f"{serial_task_prefix} Failed to reopen serial port: {port}"
-                    )
+                    print_error(f"{serial_task_prefix} Failed to reopen serial port: {port}")
                     time.sleep(1)
                     continue
 
+class MainWindow(QMainWindow):
+    def __init__(self, bms_hv_read_queue, bms_hv_write_queue, connected_event, exit_event, serial_thread):
+        super().__init__()
+        self.setWindowTitle("BMS HV Utility")
+        
+        self.setFixedSize(1600, 1000)
+
+        self.bms_hv_read_queue = bms_hv_read_queue
+        self.bms_hv_write_queue = bms_hv_write_queue
+        self.serial_task_connected_event = connected_event
+        self.main_exit_event = exit_event
+        self.serial_thread = serial_thread
+
+        self.init_ui()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.updateData)
+        self.timer.start(500)
+
+    def init_ui(self):
+        main_widget = QWidget()
+        main_layout = QVBoxLayout()
+        main_widget.setLayout(main_layout)
+        self.setCentralWidget(main_widget)
+
+        image_label = QLabel()
+        pixmap = QPixmap(IMAGE_PATH)
+        image_label.setPixmap(pixmap)
+        image_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(image_label)
+
+        columns_layout = QHBoxLayout()
+        main_layout.addLayout(columns_layout)
+
+        
+        left_layout = QVBoxLayout()
+        columns_layout.addLayout(left_layout)
+
+        basic_info_box = QGroupBox("Basic Info")
+        basic_info_layout = QGridLayout()
+        basic_info_box.setLayout(basic_info_layout)
+
+        basic_info_layout.addWidget(QLabel("Connection Status:"), 0, 0)
+        self.label_connection_status = QLabel("-")
+        basic_info_layout.addWidget(self.label_connection_status, 0, 1)
+
+        basic_info_layout.addWidget(QLabel("Timestamp:"), 1, 0)
+        self.label_timestamp = QLabel("-")
+        basic_info_layout.addWidget(self.label_timestamp, 1, 1)
+        basic_info_layout.addWidget(QLabel("s"), 1, 2)
+
+        basic_info_layout.addWidget(QLabel("Current:"), 2, 0)
+        self.label_current = QLabel("-")
+        basic_info_layout.addWidget(self.label_current, 2, 1)
+        basic_info_layout.addWidget(QLabel("A"), 2, 2)
+
+        basic_info_layout.addWidget(QLabel("Charging Status:"), 3, 0)
+        self.label_charging_status = QLabel("-")
+        basic_info_layout.addWidget(self.label_charging_status, 3, 1)
+
+        basic_info_layout.addWidget(QLabel("Balance Status:"), 4, 0)
+        self.label_balance_status = QLabel("-")
+        basic_info_layout.addWidget(self.label_balance_status, 4, 1)
+
+        left_layout.addWidget(basic_info_box)
+
+        charge_control_box = QGroupBox("Charge control")
+        charge_control_layout = QVBoxLayout()
+        charge_control_box.setLayout(charge_control_layout)
+
+        self.btn_full_battery_soc = QPushButton("Full Battery Soc")
+        self.btn_full_battery_soc.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!B-FC@"))
+        charge_control_layout.addWidget(self.btn_full_battery_soc)
+
+        self.btn_start_charging = QPushButton("Start Charging")
+        self.btn_start_charging.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!C-ON@"))
+        charge_control_layout.addWidget(self.btn_start_charging)
+
+        self.btn_stop_charging = QPushButton("Stop Charging")
+        self.btn_stop_charging.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!C-OF@"))
+        charge_control_layout.addWidget(self.btn_stop_charging)
+
+        self.btn_start_balance = QPushButton("Start Balance")
+        self.btn_start_balance.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!B-ON@"))
+        charge_control_layout.addWidget(self.btn_start_balance)
+
+        self.btn_stop_balance = QPushButton("Stop Balance")
+        self.btn_stop_balance.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!B-OF@"))
+        charge_control_layout.addWidget(self.btn_stop_balance)
+
+        self.btn_charge_1A = QPushButton("Set Charge Current to 1A")
+        self.btn_charge_1A.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!I-1A@"))
+        charge_control_layout.addWidget(self.btn_charge_1A)
+
+        self.btn_charge_2A = QPushButton("Set Charge Current to 2A")
+        self.btn_charge_2A.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!I-2A@"))
+        charge_control_layout.addWidget(self.btn_charge_2A)
+
+        self.btn_charge_4A = QPushButton("Set Charge Current to 4A")
+        self.btn_charge_4A.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!I-4A@"))
+        charge_control_layout.addWidget(self.btn_charge_4A)
+
+        self.btn_charge_8A = QPushButton("Set Charge Current to 8A")
+        self.btn_charge_8A.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!I-8A@"))
+        charge_control_layout.addWidget(self.btn_charge_8A)
+
+        self.btn_charge_12A = QPushButton("Set Charge Current to 12A")
+        self.btn_charge_12A.clicked.connect(lambda: send_message_to_write_queue(self.bms_hv_write_queue, "!I-12@"))
+        charge_control_layout.addWidget(self.btn_charge_12A)
+
+        left_layout.addWidget(charge_control_box)
+
+        exit_box = QGroupBox("Exit")
+        exit_layout = QVBoxLayout()
+        exit_box.setLayout(exit_layout)
+        self.btn_exit = QPushButton("Exit")
+        self.btn_exit.clicked.connect(self.close)
+        exit_layout.addWidget(self.btn_exit)
+        left_layout.addWidget(exit_box)
+
+        
+        right_layout = QVBoxLayout()
+        columns_layout.addLayout(right_layout)
+
+        # --- GroupBox: Cell Voltages ---
+        cell_voltage_box = QGroupBox("Cell Voltages")
+        cell_voltage_layout = QVBoxLayout()
+        cell_voltage_box.setLayout(cell_voltage_layout)
+
+        self.table_cell_voltage = QTableWidget(CELL_VOLTAGE_TABLE_ROWS, CELL_VOLTAGE_TABLE_COLUMNS)
+        self.table_cell_voltage.setEditTriggers(QTableWidget.NoEditTriggers)
+        headers = [f"LTC {j}" for j in range(CELL_VOLTAGE_TABLE_COLUMNS)]
+        self.table_cell_voltage.setHorizontalHeaderLabels(headers)
+        self.table_cell_voltage.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_cell_voltage.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_cell_voltage.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        
+        for col in range(CELL_VOLTAGE_TABLE_COLUMNS):
+            self.table_cell_voltage.setColumnWidth(col, 70)
+        self.table_cell_voltage.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.table_cell_voltage.verticalHeader().setDefaultSectionSize(25)
+        
+        self.table_cell_voltage.setFixedHeight(9 * 25 + 30)
+
+        cell_voltage_layout.addWidget(self.table_cell_voltage)
+
+        voltage_info_layout = QGridLayout()
+        voltage_info_layout.addWidget(QLabel("Max Voltage:"), 0, 0)
+        self.label_cell_max_voltage = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_max_voltage, 0, 1)
+        voltage_info_layout.addWidget(QLabel("V"), 0, 2)
+        voltage_info_layout.addWidget(QLabel("LTC:"), 0, 3)
+        self.label_cell_max_voltage_ltc = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_max_voltage_ltc, 0, 4)
+        voltage_info_layout.addWidget(QLabel("Cell:"), 0, 5)
+        self.label_cell_max_voltage_cell = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_max_voltage_cell, 0, 6)
+
+        voltage_info_layout.addWidget(QLabel("Min Voltage:"), 1, 0)
+        self.label_cell_min_voltage = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_min_voltage, 1, 1)
+        voltage_info_layout.addWidget(QLabel("V"), 1, 2)
+        voltage_info_layout.addWidget(QLabel("LTC:"), 1, 3)
+        self.label_cell_min_voltage_ltc = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_min_voltage_ltc, 1, 4)
+        voltage_info_layout.addWidget(QLabel("Cell:"), 1, 5)
+        self.label_cell_min_voltage_cell = QLabel("-")
+        voltage_info_layout.addWidget(self.label_cell_min_voltage_cell, 1, 6)
+
+        cell_voltage_layout.addLayout(voltage_info_layout)
+        right_layout.addWidget(cell_voltage_box)
+
+        # --- GroupBox: Temperatures ---
+        temperature_box = QGroupBox("Temperatures")
+        temperature_layout = QVBoxLayout()
+        temperature_box.setLayout(temperature_layout)
+
+        self.table_temperature = QTableWidget(TEMPERATURE_TABLE_ROWS, TEMPERATURE_TABLE_COLUMNS)
+        self.table_temperature.setEditTriggers(QTableWidget.NoEditTriggers)
+        temp_headers = [f"Col {j+1}" for j in range(TEMPERATURE_TABLE_COLUMNS)]
+        self.table_temperature.setHorizontalHeaderLabels(temp_headers)
+        self.table_temperature.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_temperature.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_temperature.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        
+        for col in range(TEMPERATURE_TABLE_COLUMNS):
+            self.table_temperature.setColumnWidth(col, 50)
+        self.table_temperature.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.table_temperature.verticalHeader().setDefaultSectionSize(25)
+
+        temperature_layout.addWidget(self.table_temperature)
+
+        temp_info_layout = QHBoxLayout()
+        temp_info_layout.addWidget(QLabel("Max Temp:"))
+        self.label_max_temperature = QLabel("-")
+        temp_info_layout.addWidget(self.label_max_temperature)
+        temp_info_layout.addWidget(QLabel("°C"))
+        temperature_layout.addLayout(temp_info_layout)
+        right_layout.addWidget(temperature_box)
+
+        # --- GroupBox: SOC ---
+        soc_box = QGroupBox("Soc")
+        soc_layout = QVBoxLayout()
+        soc_box.setLayout(soc_layout)
+        self.table_soc = QTableWidget(SOC_TABLE_ROWS, SOC_TABLE_COLUMNS)
+        self.table_soc.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_soc.setHorizontalHeaderLabels(["Min", "Max", "Avg", "Median"])
+        self.table_soc.verticalHeader().setVisible(False)
+        self.table_soc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_soc.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.table_soc.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        
+        for col in range(SOC_TABLE_COLUMNS):
+            self.table_soc.setColumnWidth(col, 50)
+        soc_layout.addWidget(self.table_soc)
+        right_layout.addWidget(soc_box)
+
+        # --- GroupBox: Errors ---
+        error_box = QGroupBox("Errors")
+        error_layout = QVBoxLayout()
+        error_box.setLayout(error_layout)
+        self.table_error = QTableWidget(ERROR_TABLE_ROWS, ERROR_TABLE_COLUMNS)
+        self.table_error.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table_error.setHorizontalHeaderLabels(["Error", "Value"])
+        self.table_error.verticalHeader().setVisible(False)
+        self.table_error.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        for col in range(ERROR_TABLE_COLUMNS):
+            self.table_error.setColumnWidth(col, 100)
+        error_layout.addWidget(self.table_error)
+        right_layout.addWidget(error_box)
+
+    def updateData(self):
+        if self.serial_task_connected_event.is_set():
+            self.label_connection_status.setText("Connected")
+        else:
+            self.label_connection_status.setText("Disconnected")
+
+        while not self.bms_hv_read_queue.empty():
+            bms_hv_data_json = self.bms_hv_read_queue.get()
+            try:
+                bms_hv_data_obj = json.loads(bms_hv_data_json, object_hook=lambda d: SimpleNamespace(**d))
+                bms_data = BmsHvData(**bms_hv_data_obj.__dict__)
+            except json.decoder.JSONDecodeError:
+                print_error(f"Invalid JSON: {bms_hv_data_json}")
+                continue
+            except TypeError:
+                print_error(f"Received JSON is not of type BmsHvData: {bms_hv_data_json}")
+                continue
+
+            self.updateBasicInfo(bms_data)
+            self.updateCellVoltageTable(bms_data)
+            self.updateTemperatureTable(bms_data)
+            self.updateSOCTable(bms_data)
+            self.updateErrorTable(bms_data)
+
+    def updateBasicInfo(self, bms_data: BmsHvData):
+        self.label_timestamp.setText(float_to_string_with_precision(bms_data.timestamp / 1000, 3))
+        self.label_current.setText(float_to_string_with_precision(bms_data.current, FLOAT_PRECISION))
+        self.label_charging_status.setText("On" if bms_data.charging else "Off")
+        self.label_balance_status.setText("On" if bms_data.balance else "Off")
+        self.label_max_temperature.setText(float_to_string_with_precision(max(bms_data.temperature), FLOAT_PRECISION))
+
+    def updateCellVoltageTable(self, bms_data: BmsHvData):
+        cell_values = [
+            mark_cell_if_discharge(float_to_string_with_precision(v, FLOAT_PRECISION), bms_data.discharge[i])
+            for i, v in enumerate(bms_data.cell_voltage)
+        ]
+        try:
+            matrix = np.array(cell_values).reshape((CELL_VOLTAGE_TABLE_ROWS, CELL_VOLTAGE_TABLE_COLUMNS))
+        except ValueError:
+            print_error("Invalid number of cell voltage entries")
+            return
+
+        for row in range(CELL_VOLTAGE_TABLE_ROWS):
+            for col in range(CELL_VOLTAGE_TABLE_COLUMNS):
+                item = QTableWidgetItem(str(matrix[row, col]))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.table_cell_voltage.setItem(row, col, item)
+
+        cell_voltage_floats = np.array(bms_data.cell_voltage).reshape((CELL_VOLTAGE_TABLE_ROWS, CELL_VOLTAGE_TABLE_COLUMNS))
+        max_voltage = np.max(cell_voltage_floats)
+        min_voltage = np.min(cell_voltage_floats)
+        self.label_cell_max_voltage.setText(float_to_string_with_precision(max_voltage, FLOAT_PRECISION))
+        self.label_cell_min_voltage.setText(float_to_string_with_precision(min_voltage, FLOAT_PRECISION))
+        max_idx = np.where(cell_voltage_floats == max_voltage)
+        if max_idx[0].size > 0:
+            self.label_cell_max_voltage_ltc.setText(str(int(max_idx[1][0])))
+            self.label_cell_max_voltage_cell.setText(str(int(max_idx[0][0])))
+        min_idx = np.where(cell_voltage_floats == min_voltage)
+        if min_idx[0].size > 0:
+            self.label_cell_min_voltage_ltc.setText(str(int(min_idx[1][0])))
+            self.label_cell_min_voltage_cell.setText(str(int(min_idx[0][0])))
+
+    def updateTemperatureTable(self, bms_data: BmsHvData):
+        temp_values = [float_to_string_with_precision(v, FLOAT_PRECISION) for v in bms_data.temperature]
+        try:
+            matrix_temp = np.array(temp_values).reshape((TEMPERATURE_TABLE_ROWS, TEMPERATURE_TABLE_COLUMNS))
+        except ValueError:
+            print_error("Invalid number of temperature entries")
+            return
+
+        for row in range(TEMPERATURE_TABLE_ROWS):
+            for col in range(TEMPERATURE_TABLE_COLUMNS):
+                item = QTableWidgetItem(str(matrix_temp[row, col]))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.table_temperature.setItem(row, col, item)
+
+    def updateSOCTable(self, bms_data: BmsHvData):
+        soc_values = [
+            float_to_string_with_precision(v * 100, FLOAT_PRECISION)
+            for v in [min(bms_data.soc), max(bms_data.soc), sum(bms_data.soc) / len(bms_data.soc), median(bms_data.soc)]
+        ]
+        for col in range(SOC_TABLE_COLUMNS):
+            item = QTableWidgetItem(soc_values[col])
+            item.setTextAlignment(Qt.AlignCenter)
+            self.table_soc.setItem(0, col, item)
+
+    def updateErrorTable(self, bms_data: BmsHvData):
+        errors = [
+            ([e[0], str(e[2])] if e[1] == 1 else ["-", "-"])
+            for e in [
+                ["Under Voltage", bms_data.under_voltage[0], bms_data.under_voltage[1]],
+                ["Over Voltage", bms_data.over_voltage[0], bms_data.over_voltage[1]],
+                ["Under Temperature", bms_data.under_temperature[0], bms_data.under_temperature[1]],
+                ["Over Temperature", bms_data.over_temperature[0], bms_data.over_temperature[1]],
+                ["Over Current", bms_data.over_current[0], bms_data.over_current[1]],
+                ["Current Sensor", bms_data.current_sensor_disconnected[0], "Disconnected"],
+            ]
+        ]
+        for row in range(ERROR_TABLE_ROWS):
+            for col in range(ERROR_TABLE_COLUMNS):
+                item = QTableWidgetItem(errors[row][col])
+                item.setTextAlignment(Qt.AlignCenter)
+                self.table_error.setItem(row, col, item)
+
+    def closeEvent(self, event):
+        self.main_exit_event.set()
+        self.serial_thread.join()
+        print_ok("Exiting...")
+        event.accept()
 
 def main():
-    """Main function"""
     if len(sys.argv) != 2:
-        print_error("Usage: python main.py <serial_port>")
+        print_error("Usage: python main_pyqt.py <serial_port>")
         sys.exit(1)
 
     print_ok("Starting...")
@@ -399,213 +509,17 @@ def main():
     bms_hv_read_queue = queue.Queue(maxsize=1)
     bms_hv_write_queue = queue.Queue(maxsize=1)
 
-    serial_task_thread = threading.Thread(
+    serial_thread = threading.Thread(
         target=serial_task,
-        args=(
-            sys.argv[1],
-            bms_hv_read_queue,
-            bms_hv_write_queue,
-            serial_task_connected_event,
-            main_exit_event,
-        ),
+        args=(sys.argv[1], bms_hv_read_queue, bms_hv_write_queue, serial_task_connected_event, main_exit_event),
         daemon=True,
     )
-    serial_task_thread.start()
+    serial_thread.start()
 
-    while True:
-        event, values = window.read(timeout=500)
-
-        if serial_task_connected_event.is_set():
-            window[KEY_CONNECTION_STATUS].update("Connected")
-        else:
-            window[KEY_CONNECTION_STATUS].update("Disconnected")
-
-        if event == sg.WINDOW_CLOSED or event == "Exit":
-            break
-        
-        elif event == "Full Battery Soc":
-            send_message_to_write_queue(bms_hv_write_queue, "!B-FC@")
-
-        elif event == "Start Charging":
-            send_message_to_write_queue(bms_hv_write_queue, "!C-ON@")
-
-        elif event == "Stop Charging":
-            send_message_to_write_queue(bms_hv_write_queue, "!C-OF@")
-
-        elif event == "Start Balance":
-            send_message_to_write_queue(bms_hv_write_queue, "!B-ON@")
-
-        elif event == "Stop Balance":
-            send_message_to_write_queue(bms_hv_write_queue, "!B-OF@")
-
-        elif event == "Set Charge Current to 1A":
-            send_message_to_write_queue(bms_hv_write_queue, "!I-1A@")
-
-        elif event == "Set Charge Current to 2A":
-            send_message_to_write_queue(bms_hv_write_queue, "!I-2A@")
-
-        elif event == "Set Charge Current to 4A":
-            send_message_to_write_queue(bms_hv_write_queue, "!I-4A@")
-
-        elif event == "Set Charge Current to 8A":
-            send_message_to_write_queue(bms_hv_write_queue, "!I-8A@")
-
-        elif event == "Set Charge Current to 12A":
-            send_message_to_write_queue(bms_hv_write_queue, "!I-12@")
-
-        if not bms_hv_read_queue.empty():
-            bms_hv_data_json = bms_hv_read_queue.get()
-            try:
-                bms_hv_data = json.loads(
-                    bms_hv_data_json, object_hook=lambda d: SimpleNamespace(**d)
-                )
-                bms_hv_data = BmsHvData(**bms_hv_data.__dict__)
-
-            except json.decoder.JSONDecodeError:
-                print_error(f"Invalid JSON: {bms_hv_data_json}")
-                continue
-
-            except TypeError:
-                print_error(
-                    f"Received JSON is not of type BmsHvData: {bms_hv_data_json}"
-                )
-                continue
-
-            # BASIC INFO
-            window[KEY_TIMESTAMP].update(
-                float_to_string_with_precision((bms_hv_data.timestamp / 1000), 3)
-            )
-            window[KEY_MAX_TEMPERATURE].update(
-                float_to_string_with_precision(
-                    max(bms_hv_data.temperature), FLOAT_PRECISION
-                )
-            )
-            window[KEY_CURRENT].update(
-                float_to_string_with_precision(bms_hv_data.current, FLOAT_PRECISION)
-            )
-            # window[KEY_ACC_VOLTAGE].update(
-            #     float_to_string_with_precision(bms_hv_data.acc_voltage, FLOAT_PRECISION)
-            # )
-            # window[KEY_CAR_VOLTAGE].update(
-            #     float_to_string_with_precision(bms_hv_data.car_voltage, FLOAT_PRECISION)
-            # )
-            window[KEY_CHARGING_STATUS].update("On" if bms_hv_data.charging else "Off")
-            window[KEY_BALANCE_STATUS].update("On" if bms_hv_data.balance else "Off")
-
-            # CELL VOLTAGE TABLE
-            window[KEY_CELL_VOLTAGE].update(
-                values=to_matrix(
-                    [
-                        [
-                            mark_cell_if_discharge(
-                                float_to_string_with_precision(v, FLOAT_PRECISION),
-                                bms_hv_data.discharge[i],
-                            )
-                            for i, v in enumerate(bms_hv_data.cell_voltage)
-                        ]
-                    ],
-                    CELL_VOLTAGE_TABLE_COLUMNS,
-                ).tolist()
-            )
-            window[KEY_CELL_MAX_VOLTAGE].update(
-                float_to_string_with_precision(
-                    max(bms_hv_data.cell_voltage), FLOAT_PRECISION
-                )
-            )
-            max_cell_num, max_ltc_num = np.where(
-                to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
-                == max(bms_hv_data.cell_voltage)
-            )
-            window[KEY_CELL_MAX_VOLTAGE_LTC].update(max_ltc_num[0])
-            window[KEY_CELL_MAX_VOLTAGE_CELL].update(max_cell_num[0])
-
-            window[KEY_CELL_MIN_VOLTAGE].update(
-                float_to_string_with_precision(
-                    min(bms_hv_data.cell_voltage), FLOAT_PRECISION
-                )
-            )
-            min_cell_num, min_ltc_num = np.where(
-                to_matrix(bms_hv_data.cell_voltage, CELL_VOLTAGE_TABLE_COLUMNS)
-                == min(bms_hv_data.cell_voltage)
-            )
-            window[KEY_CELL_MIN_VOLTAGE_LTC].update(min_ltc_num[0])
-            window[KEY_CELL_MIN_VOLTAGE_CELL].update(min_cell_num[0])
-
-            # TEMPERATURE TABLE
-            window[KEY_TEMPERATURE].update(
-                values=to_matrix(
-                    [
-                        float_to_string_with_precision(v, FLOAT_PRECISION)
-                        for v in bms_hv_data.temperature
-                    ],
-                    TEMPERATURE_TABLE_COLUMNS,
-                ).tolist()
-            )
-
-            # SOC TABLE
-            window[KEY_SOC].update(
-                values=to_matrix(
-                    [
-                        [
-                            float_to_string_with_precision(v * 100, FLOAT_PRECISION)
-                            for v in [
-                                min(bms_hv_data.soc),
-                                max(bms_hv_data.soc),
-                                sum(bms_hv_data.soc) / len(bms_hv_data.soc),
-                                median(bms_hv_data.soc),
-                            ]
-                        ]
-                    ],
-                    SOC_TABLE_COLUMNS,
-                ).tolist()
-            )
-
-            errors = [
-                ([e[0], e[2]] if e[1] == 1 else ["-", "-"])
-                for e in [
-                    [
-                        "Under Voltage",
-                        bms_hv_data.under_voltage[0],
-                        bms_hv_data.under_voltage[1],
-                    ],
-                    [
-                        "Over Voltage",
-                        bms_hv_data.over_voltage[0],
-                        bms_hv_data.over_voltage[1],
-                    ],
-                    [
-                        "Under Temperature",
-                        bms_hv_data.under_temperature[0],
-                        bms_hv_data.under_temperature[1],
-                    ],
-                    [
-                        "Over Temperature",
-                        bms_hv_data.over_temperature[0],
-                        bms_hv_data.over_temperature[1],
-                    ],
-                    [
-                        "Over Current",
-                        bms_hv_data.over_current[0],
-                        bms_hv_data.over_current[1],
-                    ],
-                    [
-                        "Current Sensor",
-                        bms_hv_data.current_sensor_disconnected[0],
-                        "Disconnected",
-                    ],
-                ]
-            ]
-
-            # ERROR TABLE
-            window[KEY_ERROR].update(values=errors)
-
-    main_exit_event.set()
-    serial_task_thread.join()
-
-    window.close()
-    print_ok("Exiting...")
-    return 0
-
+    app = QApplication(sys.argv)
+    main_window = MainWindow(bms_hv_read_queue, bms_hv_write_queue, serial_task_connected_event, main_exit_event, serial_thread)
+    main_window.show()
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
     main()
