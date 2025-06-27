@@ -30,16 +30,18 @@ def detect_source_and_type():
     except Exception:
         pass
 
-    for port in ["COM1", "COM2", "COM3", "COM4", "COM5"]:
+    ports = serial.tools.list_ports.comports()
+    for p in ports:
         try:
-            source = open_serial(port)
+            s = serial.Serial(p.device, baudrate=9600, timeout=1)
             time.sleep(0.1)
-            line = safe_readline(source)
+            line = safe_readline(s)
             if line:
                 data = json.loads(line)
-                return source, data
-            source.close()
-        except Exception:
+                return s, data 
+            s.close()
+        except Exception as e:
+            print(f"Port {p.device} failed: {e}")
             continue
 
     return None, None
