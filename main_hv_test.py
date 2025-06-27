@@ -102,7 +102,7 @@ class MainApp(QMainWindow):
                 time.sleep(0.5)  
 
     def timerEvent(self, _):
-        data_timeout = 5
+        data_timeout = 25
         time_since_last = time.time() - self.last_data_time
 
         if self.last_data is None or time_since_last > data_timeout:
@@ -163,9 +163,8 @@ class MainApp(QMainWindow):
                 port_name = self.source.port
                 try:
                     self.source.close()
-                    print(f"Zamknięto port {port_name} przed przekazaniem do serial_task.")
                 except Exception as e:
-                    print(f"Nie udało się zamknąć portu {port_name}: {e}")
+                    print(f"Couldn't close port {port_name}: {e}")
             elif isinstance(self.source, str):
                 port_name = self.source
             self.serial_thread = threading.Thread(
