@@ -550,15 +550,20 @@ class MainWindow(QMainWindow):
             self.table_soc.setItem(0, col, item)
 
     def updateErrorTab(self, bms_data: BmsHvData):
-        errors = [
-            ["Under Voltage", str(bms_data.under_voltage[1])] if bms_data.under_voltage[0] else None,
-            ["Over Voltage", str(bms_data.over_voltage[1])] if bms_data.over_voltage[0] else None,
-            ["Under Temperature", str(bms_data.under_temperature[1])] if bms_data.under_temperature[0] else None,
-            ["Over Temperature", str(bms_data.over_temperature[1])] if bms_data.over_temperature[0] else None,
-            ["Over Current", str(bms_data.over_current[1])] if bms_data.over_current[0] else None,
-            ["Current Sensor", "Disconnected"] if bms_data.current_sensor_disconnected[0] else None,
+        error_type = [
+            ("Under Voltage", bms_data.under_voltage),
+            ("Over Voltage", bms_data.over_voltage),
+            ("Under Temperature", bms_data.under_temperature),
+            ("Over Temperature", bms_data.over_temperature),
+            ("Over Current", bms_data.over_current),
+            ("Current Sensor", [bms_data.current_sensor_disconnected[0], "Disconnected"]),
         ]
-        errors = [e for e in errors if e]
+
+        errors = [
+            (name, str(value))
+            for name, (flag, value) in error_type
+            if flag == 1
+        ]
 
         if not errors:
             self.table_error.setRowCount(1)
