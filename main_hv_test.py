@@ -9,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout
-from lv_2 import MainWindow as MainWindowLV
+#from lv_2 import MainWindow as MainWindowLV
 from hv_4_d import MainWindow as MainWindowHV, serial_task
 
 import serial
@@ -212,17 +212,17 @@ class MainApp(QMainWindow):
             self.resize(400, 300)  
         elif isinstance(widget, MainWindowHV):
             self.resize(1750, 900)
-        elif isinstance(widget, MainWindowLV):
-            self.resize(500, 717)
+        '''elif isinstance(widget, MainWindowLV):
+            self.resize(500, 717)'''
         
         
         self.overlay.raise_()
         self.overlay.resize(self.size())
 
-    def get_lv_widget(self):
+    '''def get_lv_widget(self):
         if not self.widget_lv:
             self.widget_lv = MainWindowLV(self.source, [], self.exit_event)
-        return self.widget_lv
+        return self.widget_lv'''
 
     def get_hv_widget(self):
         if not self.widget_hv:
